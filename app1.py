@@ -20,17 +20,13 @@ language = st.radio(
 # Initialize Firebase safely for Streamlit
 if not firebase_admin._apps:
     try:
-        # 1. Try Streamlit Secrets (for Cloud deployment)
-        if "firebase" in st.secrets:
-            # Convert Streamlit secrets to dict for Firebase
-            cred = credentials.Certificate(dict(st.secrets["firebase"]))
-        # 2. Fallback to local .env file (for local development)
-        else:
-            key_path = os.getenv("FIREBASE_KEY_FILE")
-            if not key_path:
-                st.error("⚠️ Could not find Firebase credentials in st.secrets or .env!")
-                st.stop()
+        key_path = os.getenv("FIREBASE_KEY_FILE")
+        if key_path and os.path.exists(key_path):
+            # 1. Local development (.env)
             cred = credentials.Certificate(key_path)
+        else:
+            # 2. Try Streamlit Secrets (for Cloud deployment)
+            cred = credentials.Certificate(dict(st.secrets["firebase"]))
             
         firebase_admin.initialize_app(cred)
     except Exception as e:
@@ -211,16 +207,16 @@ with col2:
     st.image("images/latte.jpg", width=200)
     st.markdown("**Latte** - S:₹150 | M:₹200 | L:₹250")
 with col3:
-    st.image("images/americano.jpg", width=200)
-    st.markdown("**Americano** - S:₹150 | M:₹200 | L:₹250")
+    st.image("images/black coffee.jpg", width=200)
+    st.markdown("**Black coffee** - S:₹150 | M:₹200 | L:₹250")
 
 col4, col5, col6 = st.columns(3)
 with col4:
     st.image("images/espresso.jpg", width=200)
     st.markdown("**Espresso** - S:₹150 | M:₹200 | L:₹250")
 with col5:
-    st.image("images/mocha.jpg", width=200)
-    st.markdown("**Mocha** - S:₹150 | M:₹200 | L:₹250")
+    st.image("images/americano.jpg", width=200)
+    st.markdown("**Americano** - S:₹150 | M:₹200 | L:₹250")
 with col6:
     st.image("images/flat-white.jpg", width=200)
     st.markdown("**Flat White** - S:₹150 | M:₹200 | L:₹250")
