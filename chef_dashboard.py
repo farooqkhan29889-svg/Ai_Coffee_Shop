@@ -64,8 +64,22 @@ body, p, div {
 
 # ---- Initialize Firebase (only once) ----
 if not firebase_admin._apps:
-    cred = credentials.Certificate(os.getenv("FIREBASE_KEY_FILE"))
-    firebase_admin.initialize_app(cred)
+    try:
+        # 1. Try Streamlit Secrets (for Cloud deployment)
+        if "firebase" in st.secrets:
+            cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        # 2. Fallback to local .env file (for local development)
+        else:
+            key_path = os.getenv("FIREBASE_KEY_FILE")
+            if not key_path:
+                st.error("⚠️ Could not find Firebase credentials in st.secrets or .env!")
+                st.stop()
+            cred = credentials.Certificate(key_path)
+            
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        st.error(f"⚠️ Failed to connect to Firebase: {e}")
+        st.stop()
 
 db = firestore.client()
 
