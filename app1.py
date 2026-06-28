@@ -232,21 +232,21 @@ with col1:
     st.image("images/cookies.jpg", width=200)
     st.markdown("**Cookies** - ₹100")
 with col2:
-    st.image("images/brownie chocplat.jpg", width=200)
-    st.markdown("**chocolate cake** 🎂 → ₹150")
+    st.image("images/Chocolate Cake.jpg", width=200)
+    st.markdown("**Chocolate Cake** 🎂 → ₹150")
 with col3:
-    st.image("images/muffins.jpg", width=200)
+    st.image("images/Muffins.jpg", width=200)
     st.markdown("**Muffins** 🧁 → ₹140")
 
 col4, col5, col6 = st.columns(3)
 with col4:
-    st.image("images/brownie chocklat.jpg", width=200)
-    st.markdown("**brownie** - 🍫 → ₹160")
+    st.image("images/Brownie.jpg", width=200)
+    st.markdown("**Brownie** - 🍫 → ₹160")
 with col5:
-    st.image("images/gulab jamun.jpg", width=200)
+    st.image("images/Gulab Jamun.jpg", width=200)
     st.markdown("**Gulab Jamun** -  🍮 → ₹20")
 with col6:
-    st.image("images/ras malai.jpg", width=200)
+    st.image("images/Ras Malai.jpg", width=200)
     st.markdown("**Ras Mlai** - 🥟 → ₹15")
      
 # ---- CHAT AREA ------
