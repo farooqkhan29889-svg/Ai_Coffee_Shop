@@ -233,15 +233,15 @@ with col1:
     st.markdown("**Cookies** - ₹100")
 with col2:
     st.image("images/brownie chocplat.jpg", width=200)
-    st.markdown("**Chocolate Cake** 🎂 → ₹150")
+    st.markdown("**chocolate cake** 🎂 → ₹150")
 with col3:
     st.image("images/muffins.jpg", width=200)
     st.markdown("**Muffins** 🧁 → ₹140")
 
 col4, col5, col6 = st.columns(3)
 with col4:
-    st.image("images/brownie chocplat.jpg", width=200)
-    st.markdown("**Brownie chocplat** - 🍫 → ₹160")
+    st.image("images/brownie chocklat.jpg", width=200)
+    st.markdown("**brownie** - 🍫 → ₹160")
 with col5:
     st.image("images/gulab jamun.jpg", width=200)
     st.markdown("**Gulab Jamun** -  🍮 → ₹20")
