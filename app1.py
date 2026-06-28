@@ -229,7 +229,7 @@ with col6:
 st.subheader("Our Sweets Menu 🍵")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.image("images/Cookies.jpg", width=200)
+    st.image("images/cookies.jpg", width=200)
     st.markdown("**Cookies** - ₹100")
 with col2:
     st.image("images/Chocolate Cake.jpg", width=200)
