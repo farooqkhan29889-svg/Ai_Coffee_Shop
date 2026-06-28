@@ -232,7 +232,7 @@ with col1:
     st.image("images/cookies.jpg", width=200)
     st.markdown("**Cookies** - ₹100")
 with col2:
-    st.image("images/chocolate cake.jpg", width=200)
+    st.image("images/brownie chocplat.jpg", width=200)
     st.markdown("**Chocolate Cake** 🎂 → ₹150")
 with col3:
     st.image("images/muffins.jpg", width=200)
