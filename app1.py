@@ -20,13 +20,17 @@ language = st.radio(
 # Initialize Firebase safely for Streamlit
 if not firebase_admin._apps:
     try:
-        key_path = os.getenv("FIREBASE_KEY_FILE")
-        if key_path and os.path.exists(key_path):
-            # 1. Local development (.env)
-            cred = credentials.Certificate(key_path)
-        else:
-            # 2. Try Streamlit Secrets (for Cloud deployment)
+        # 1. Try Streamlit Secrets (for Cloud deployment)
+        if "firebase" in st.secrets:
+            # Convert Streamlit secrets to dict for Firebase
             cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        # 2. Fallback to local .env file (for local development)
+        else:
+            key_path = os.getenv("FIREBASE_KEY_FILE")
+            if not key_path:
+                st.error("⚠️ Could not find Firebase credentials in st.secrets or .env!")
+                st.stop()
+            cred = credentials.Certificate(key_path)
             
         firebase_admin.initialize_app(cred)
     except Exception as e:
@@ -76,7 +80,7 @@ Our Sweets Menu:
 - Muffins 🧁 → ₹140
 - Brownie 🍫 → ₹160
 - Gulab Jamun 🍮 → ₹20
-- Samosa 🥟 → ₹15
+- Ras Mlai 🥟 → ₹30
 
 SMPORTANT RULES:
 1. ALWAYS ask for: Name → Coffee Type → Size → Table Number
@@ -242,8 +246,8 @@ with col5:
     st.image("images/Gulab Jamun.jpg", width=200)
     st.markdown("**Gulab Jamun** -  🍮 → ₹20")
 with col6:
-    st.image("images/Samosa.jpg", width=200)
-    st.markdown("**Samosa** - 🥟 → ₹15")
+    st.image("images/Ras Mlai.jpg", width=200)
+    st.markdown("**Ras Mlai** - 🥟 → ₹15")
      
 # ---- CHAT AREA ------
 st.subheader("Chat With Nova 🤖")
