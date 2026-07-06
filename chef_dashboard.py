@@ -71,7 +71,10 @@ if not firebase_admin._apps:
             cred = credentials.Certificate(key_path)
         else:
             # 2. Try Streamlit Secrets (for Cloud deployment)
-            cred = credentials.Certificate(dict(st.secrets["firebase"]))
+            firebase_creds = dict(st.secrets["firebase"])
+            if "private_key" in firebase_creds:
+                firebase_creds["private_key"] = firebase_creds["private_key"].replace("\\n", "\n")
+            cred = credentials.Certificate(firebase_creds)
             
         firebase_admin.initialize_app(cred)
     except Exception as e:

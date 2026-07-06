@@ -23,7 +23,10 @@ if not firebase_admin._apps:
         # 1. Try Streamlit Secrets (for Cloud deployment)
         if "firebase" in st.secrets:
             # Convert Streamlit secrets to dict for Firebase
-            cred = credentials.Certificate(dict(st.secrets["firebase"]))
+            firebase_creds = dict(st.secrets["firebase"])
+            if "private_key" in firebase_creds:
+                firebase_creds["private_key"] = firebase_creds["private_key"].replace("\\n", "\n")
+            cred = credentials.Certificate(firebase_creds)
         # 2. Fallback to local .env file (for local development)
         else:
             key_path = os.getenv("FIREBASE_KEY_FILE")
@@ -256,7 +259,29 @@ for messeges in st.session_state.messeges:
     with st.chat_message(messeges["role"]):
         st.markdown(messeges["content"])
 
-if prompt := st.chat_input("Ask Nova anything"):
+audio_value = st.audio_input("Or speak to Nova 🎤")
+prompt = st.chat_input("Ask Nova anything")
+
+if audio_value is not None:
+    import hashlib
+    audio_bytes = audio_value.getvalue()
+    audio_hash = hashlib.md5(audio_bytes).hexdigest()
+    if "last_audio_hash" not in st.session_state or st.session_state.last_audio_hash != audio_hash:
+        st.session_state.last_audio_hash = audio_hash
+        with st.spinner("Listening... Transcribing your voice..."):
+            from groq import Groq
+            import os
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key and "GROQ_API_KEY" in st.secrets:
+                api_key = st.secrets["GROQ_API_KEY"]
+            groq_client = Groq(api_key=api_key)
+            prompt = groq_client.audio.transcriptions.create(
+                file=("audio.wav", audio_bytes),
+                model="whisper-large-v3",
+                response_format="text"
+            )
+
+if prompt:
     # --- SHOW USER MESSEGE ---
     st.session_state.messeges.append({"role":"user", "content":prompt})
     with st.chat_message("user"):
