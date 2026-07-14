@@ -1,4 +1,5 @@
 import os
+import razorpay
 from dotenv import load_dotenv
 
 # Coffee Price
@@ -11,15 +12,44 @@ PRICES = {
     "Mocha": {"Small": 150, "Medium": 200, "Large": 250},
     "Flat White": {"Small": 150, "Medium": 200, "Large": 250},
 } 
+def create_razorpay_order(amount, customer_name, customer_email):
+    """Create Razorpay order for payment"""
+    try:
+        RAZORPAY_KEY_ID = os.getenv("rzp_test_TC4cf8wdKgW4Qj")
+        RAZORPAY_KEY_SECRET = os.getenv("OQu6jSCrX6EENF7Rb5mKzUuh")
+        
+        client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        
+        order_data = {
+            "amount": amount * 100,  # Convert to paise
+            "currency": "INR",
+            "receipt": f"order_{customer_name}_{amount}",
+        }
+        
+        order = client.order.create(data=order_data)
+        return order["id"]
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+FOOD_PRICES = {
+    "Croissant": 120,
+    "Chocolate Cake": 150,
+    "Muffins": 140,
+    "Brownie": 160,
+    "Gulab Jamun": 20,
+    "Ras Mlai": 15,
+}
 
 def calculate_bill(orders):
     """Total calculate_bill price"""
+    import re
     bill_items = []
     total = 0
     
     for order in orders:
-        coffee = order.get("coffee")
-        size = order.get("size")
+        coffee = order.get("coffee", "")
+        size = order.get("size", "")
         
         if coffee in PRICES and size in PRICES[coffee]:
             price = PRICES[coffee][size]  #  FIXED: Added PRICES
@@ -27,8 +57,34 @@ def calculate_bill(orders):
                 "item": f"{coffee} ({size})",
                 "price": price
             })
-            
             total += price
+        else:
+            # Check if it is a food item
+            food_price = None
+            for f_name, f_price in FOOD_PRICES.items():
+                if f_name.lower() in coffee.lower():
+                    food_price = f_price
+                    # Extract quantity from size (e.g. "2 pieces" -> 2)
+                    qty = 1
+                    nums = re.findall(r'\d+', size)
+                    if nums:
+                        qty = int(nums[0])
+                    
+                    price = food_price * qty
+                    bill_items.append({
+                        "item": f"{coffee} ({size})",
+                        "price": price
+                    })
+                    total += price
+                    break
+            
+            # Fallback if unknown
+            if food_price is None:
+                bill_items.append({
+                    "item": f"{coffee} ({size})",
+                    "price": 100
+                })
+                total += 100
     
     return {
         "items": bill_items,  #  FIXED: Changed "item" to "items"

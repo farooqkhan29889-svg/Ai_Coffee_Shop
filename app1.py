@@ -5,7 +5,7 @@ import os
 import streamlit as st
 from langchain_groq import ChatGroq
 from datetime import datetime
-from payment import calculate_bill, generate_bill_text, create_razorpay_order
+from payment import calculate_bill, generate_bill_text
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
 
 load_dotenv()
@@ -327,10 +327,10 @@ if prompt := st.chat_input("Ask Nova anything"):
         ai_reply = response.content
         st.session_state.chat_history.append(AIMessage(content=ai_reply))
         
-        # ✅ SHOW AI RESPONSE
+# ✅ SHOW AI RESPONSE
         with st.chat_message("assistant"):
             st.markdown(ai_reply)
-        st.session_state.messeges.append({"role": "assistant", "content": ai_reply})
+            st.session_state.messeges.append({"role": "assistant", "content": ai_reply})
         
         # Check if order confirmed
         if "ORDER_CONFIRMED:" in ai_reply:
@@ -351,11 +351,7 @@ if prompt := st.chat_input("Ask Nova anything"):
                 st.success(f"✅ Order #{order['order_id']} confirmed!")
                 st.balloons()
             
-    # --- SHOW AI RIPLY ----
-    with st.chat_message("assistant"):
-        st.markdown(ai_reply)
-        st.session_state.messeges.append({"role": "assistant", "content": ai_reply})
-    
+
     # ── ORDER FORM ──
 st.divider()
 st.subheader("☕ Nova's Coffee Order")
