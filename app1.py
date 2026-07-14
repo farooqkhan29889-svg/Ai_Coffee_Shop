@@ -5,6 +5,7 @@ import os
 import streamlit as st
 from langchain_groq import ChatGroq
 from datetime import datetime
+from payment import calculate_bill, generate_bill_text, create_razorpay_order
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
 
 load_dotenv()
@@ -193,7 +194,7 @@ with st.sidebar:
        if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messeges = []
             st.session_state.chat_history = [st.session_state.chat_history[0]]
-            st.rerun
+            st.rerun()
     with col2:
         if st.button("🧾 Clear Orders", use_container_width=True):
            st.session_state.orders = []
@@ -260,7 +261,6 @@ for messeges in st.session_state.messeges:
         st.markdown(messeges["content"])
 
 audio_value = st.audio_input("Or speak to Nova 🎤")
-prompt = st.chat_input("Ask Nova anything")
 
 if audio_value is not None:
     import hashlib
@@ -281,38 +281,75 @@ if audio_value is not None:
                 response_format="text"
             )
 
-if prompt:
-    # --- SHOW USER MESSEGE ---
+#  SINGLE chat input at top
+if prompt := st.chat_input("Ask Nova anything"):
+    
+    # Step 1: Show user message
     st.session_state.messeges.append({"role":"user", "content":prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-        
-    # Get AI response
-    st.session_state.chat_history.append(HumanMessage(content=prompt))
-    response = llm.invoke(st.session_state.chat_history)
-    ai_reply = response.content
-    st.session_state.chat_history.append(AIMessage(content=ai_reply))
     
-    # Check if order confirmed
-    if "ORDER_CONFIRMED:" in ai_reply:
-        parts = [p.strip() for p in ai_reply.split("ORDER_CONFIRMED:")[1].strip().split("|")]
-        parts = [p for p in parts if p]  # Remove empty parts
-        if len(parts) >= 3:  # At least 3 parts
-            order = {
-                "order_id": len(st.session_state.orders) + 1,
-                "name": parts[0],
-                "table": st.session_state.table_number,
-                "coffee": parts[1],
-                "size": parts[2],
-                "extras": [],
-                "instructions": "None",
-                "time": datetime.now().strftime("%H:%M"),
-                "status": "confirmed"
-            }
-        st.session_state.orders.append(order)
-        db.collection("orders").add(order)  # ✅ NEW 
-        st.success(f"✅ Order #{order['order_id']} confirmed for {order['name']}! ☕")
-        st.balloons()
+    # Step 2: Check if asking for bill
+    if "bill" in prompt.lower() or "total bill" in prompt.lower():
+        bill_data = calculate_bill(st.session_state.orders)
+        
+        if bill_data["total"] > 0:
+            bill_text = generate_bill_text(bill_data, language)
+            
+            #  CORRECT: Use with statement
+            with st.chat_message("assistant"):
+                st.markdown(bill_text)
+            
+            #  PAYMENT OPTIONS
+            st.divider()
+            st.subheader("💳 Choose Payment Method")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("💳 Pay with Card", use_container_width=True):
+                    st.info("Opening payment gateway...")
+            
+            with col2:
+                if st.button("📱 Pay with UPI", use_container_width=True):
+                    st.info("Opening UPI payment...")
+            
+            with col3:
+                if st.button("💵 Pay with Cash on Delivery"):
+                    st.success("✅ Please pay cash at counter!")
+        else:
+            st.error("❌ No orders yet!")
+    
+    else:
+        # Step 3: Normal chat flow (not asking for bill)
+        st.session_state.chat_history.append(HumanMessage(content=prompt))
+        response = llm.invoke(st.session_state.chat_history)
+        ai_reply = response.content
+        st.session_state.chat_history.append(AIMessage(content=ai_reply))
+        
+        # ✅ SHOW AI RESPONSE
+        with st.chat_message("assistant"):
+            st.markdown(ai_reply)
+        st.session_state.messeges.append({"role": "assistant", "content": ai_reply})
+        
+        # Check if order confirmed
+        if "ORDER_CONFIRMED:" in ai_reply:
+            parts = [p.strip() for p in ai_reply.split("ORDER_CONFIRMED:")[1].strip().split("|")]
+            parts = [p for p in parts if p]
+            if len(parts) >= 3:
+                order = {
+                    "order_id": len(st.session_state.orders) + 1,
+                    "name": parts[0],
+                    "table": st.session_state.table_number,
+                    "coffee": parts[1],
+                    "size": parts[2],
+                    "time": datetime.now().strftime("%H:%M"),
+                    "status": "confirmed"
+                }
+                st.session_state.orders.append(order)
+                db.collection("orders").add(order)
+                st.success(f"✅ Order #{order['order_id']} confirmed!")
+                st.balloons()
             
     # --- SHOW AI RIPLY ----
     with st.chat_message("assistant"):
@@ -349,9 +386,9 @@ with st.form("coffee_order", clear_on_submit=True):
             "status": "confirmed"
         }
         st.session_state.orders.append(order)
-        db.collection("orders").add(order)  # ✅ NEW
-        st.success(f"✅ Order...")      
-        st.success(f"✅ Order #{order['order_id']} confirmed, {customer_name}!")
+        db.collection("orders").add(order)  #  NEW
+        st.success(f" Order...")      
+        st.success(f" Order #{order['order_id']} confirmed, {customer_name}!")
         extras_text = ", ".join(extras) if extras else "No extras"
         st.info(f"☕ {size} {coffee_type} | ➕ {extras_text} | ⏱️ Ready in 5-7 minutes")
         st.balloons()
