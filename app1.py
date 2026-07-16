@@ -271,6 +271,8 @@ for messeges in st.session_state.messeges:
     with st.chat_message(messeges["role"]):
         st.markdown(messeges["content"])
 
+user_input = None
+
 audio_value = st.audio_input("Or speak to Nova 🎤")
 
 if audio_value is not None:
@@ -286,14 +288,21 @@ if audio_value is not None:
             if not api_key and "GROQ_API_KEY" in st.secrets:
                 api_key = st.secrets["GROQ_API_KEY"]
             groq_client = Groq(api_key=api_key)
-            prompt = groq_client.audio.transcriptions.create(
+            transcription = groq_client.audio.transcriptions.create(
                 file=("audio.wav", audio_bytes),
                 model="whisper-large-v3",
                 response_format="text"
             )
+            # groq usually returns a string when response_format is "text", but just in case:
+            user_input = transcription if isinstance(transcription, str) else getattr(transcription, 'text', str(transcription))
 
 #  SINGLE chat input at top
-if prompt := st.chat_input("Ask Nova anything"):
+text_input = st.chat_input("Ask Nova anything")
+if text_input:
+    user_input = text_input
+
+if user_input:
+    prompt = user_input
     
     # Step 1: Show user message
     st.session_state.messeges.append({"role":"user", "content":prompt})
