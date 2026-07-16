@@ -51,14 +51,18 @@ if "orders" not in st.session_state:
     st.session_state.orders = []
     
 if "table_number" not in st.session_state:
-    st.session_state.table_number = 1
-# ── GET ORDERS FROM FIREBASE (with caching) ──
+    table_param = st.query_params.get("table", "1")
+    try:
+        st.session_state.table_number = int(table_param)
+    except:
+        st.session_state.table_number = 1
+
 
 #  ------ create chat histroy ----------
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        SystemMessage(content="""You are NOVA, an AI waiter at Nova Coffee Shop.
+        SystemMessage(content=f"""You are NOVA, an AI waiter at Nova Coffee Shop, currently serving Table {st.session_state.table_number}.
 
 LANGUAGE RULE — VERY STRICT:
 - Customer selected English → reply 100%  in English ALWAYS
@@ -87,21 +91,23 @@ Our Sweets Menu:
 - Ras Mlai 🥟 → ₹30
 
 SMPORTANT RULES:
-1. ALWAYS ask for: Name → Coffee Type → Size → Table Number
-2. NEVER confirm order without ALL 4 details
+1. ALWAYS ask for: Name → Coffee Type → Size
+2. NEVER confirm order without ALL 3 details
 3. When complete, write EXACTLY:
-   ORDER_CONFIRMED: [name] | [coffee] | [size] | [table]
+   ORDER_CONFIRMED: [name] | [coffee] | [size] 
 
 Example:
 ORDER_CONFIRMED: Farooq | Cappuccino | Large | 3]
 
 For SWEET orders:
 STEP 1 do not take any order befor ask name and details of order 
-like order name size and also tble number
+like order name size and do not take any order withouth asking name and size of coffee
 STEP 1 → Customer wants sweet
 STEP 3 → Ask NAME first  
 STEP 4 → Ask HOW MANY PIECES
 STEP 5 → Confirm: ORDER_CONFIRMED: [name] | [sweet] | [pieces] pieces
+like order name pieses and do not take any order withouth asking name and pieces of coffee
+
 
 
 VERY IMPORTANT:
@@ -109,10 +115,9 @@ VERY IMPORTANT:
 - Sweets → always ask PIECES not size
 - NEVER confirm without name
 - NEVER skip asking name
-- NEVER taking order without asking table number name size 
 
 CONFIRMATION FORMAT — VERY STRICT:
-After getting table number and name and size — write ONE LINE like this:
+After getting name and size — write ONE LINE like this:
 ORDER_CONFIRMED: [name] | [item] | [size/pieces]
 
 For multiple items write multiple lines:
@@ -203,8 +208,14 @@ with st.sidebar:
 # ----- Header ----------
 st.title("NOVA AI COFFEE SHOP")
 st.caption("Next-Gen AI Assistant - Built by Farooq | Now taking coffee orders!")
-st.image("images/coffee.jpg", caption="☕ Fresh Brewed Coffee Every Day", use_container_width=True)
-            
+
+# ✅ SHOW WHICH TABLE CUSTOMER IS AT
+st.markdown("---")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.success(f"🪑 Table {st.session_state.table_number}")
+st.markdown("---")
+
 # ── MENU IMAGES ──
 st.subheader("Our Coffee Menu ☕")
 col1, col2, col3 = st.columns(3)
@@ -353,16 +364,16 @@ if prompt := st.chat_input("Ask Nova anything"):
             
 
     # ── ORDER FORM ──
+# ── ORDER FORM ──
 st.divider()
 st.subheader("☕ Nova's Coffee Order")
 
 with st.form("coffee_order", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
-        table_number = st.selectbox("🪑 Table Number", range(1, 11))
-        st.session_state.table_number = table_number  # ← ADD THIS LINE!
         customer_name = st.text_input("📝 Your name", placeholder="Enter your name")
         coffee_type = st.selectbox("☕ Coffee type", ["Latte", "Americano", "Cappuccino", "Espresso", "Mocha", "Flat White"])
+    
     with col2:
         size = st.radio("📏 Size", ["Small", "Medium", "Large"], horizontal=True)
         extras = st.multiselect("➕ Extras", ["Extra shot", "Vanilla syrup", "Caramel syrup", "Oat milk", "Whipped cream"])
@@ -373,7 +384,7 @@ with st.form("coffee_order", clear_on_submit=True):
         order = {
             "order_id": len(st.session_state.orders) + 1,
             "name": customer_name,
-            "table": st.session_state.table_number,
+            "table": st.session_state.table_number,  # ✅ Uses auto-detected value
             "coffee": coffee_type,
             "size": size,
             "extras": extras if extras else [],
@@ -382,33 +393,13 @@ with st.form("coffee_order", clear_on_submit=True):
             "status": "confirmed"
         }
         st.session_state.orders.append(order)
-        db.collection("orders").add(order)  #  NEW
-        st.success(f" Order...")      
-        st.success(f" Order #{order['order_id']} confirmed, {customer_name}!")
-        extras_text = ", ".join(extras) if extras else "No extras"
-        st.info(f"☕ {size} {coffee_type} | ➕ {extras_text} | ⏱️ Ready in 5-7 minutes")
+        db.collection("orders").add(order)
+        st.success(f"✅ Order #{order['order_id']} confirmed, {customer_name}!")
         st.balloons()
         st.rerun()
     elif submitted and not customer_name:
         st.error("Please enter your name before placing order")
-# ── CURRENT ORDERS ──
-if st.session_state.orders:
-    st.divider()
-    st.subheader(f"📋 Current Orders ({len(st.session_state.orders)})")
-    for order in reversed(st.session_state.orders[-10:]):
-        with st.container():
-            col1, col2, col3 = st.columns([3, 2, 1])
-            with col1:
-                st.write(f"**#{order['order_id']} - {order['name']}**")
-                st.write(f"☕ {order['size']} {order['coffee']}")
-            with col2:
-                st.write(f"⏱️ Time: {order['time']}")
-                st.write(f"📌 Status: ✅ {order['status']}")
-            with col3:
-                if st.button(f"✅ Done", key=f"done_{order['order_id']}"):
-                    order['status'] = "completed"
-                    st.rerun()
-            st.divider()
+        
 # ── ANALYTICS ──
 if len(st.session_state.orders) > 0:
     st.divider()
