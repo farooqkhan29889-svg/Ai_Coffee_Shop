@@ -4,9 +4,10 @@ from firebase_admin import credentials, firestore
 import os
 import streamlit as st
 from langchain_groq import ChatGroq
-from datetime import datetime
+from datetime import datetime, timedelta
 from payment import calculate_bill, generate_bill_text
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
+import time
 
 load_dotenv()
 st.set_page_config(page_title="Nova Coffee", page_icon="☕", layout="wide")
@@ -49,6 +50,12 @@ if "messeges" not in st.session_state:
     
 if "orders" not in st.session_state:
     st.session_state.orders = []
+
+if "pending_order" not in st.session_state:
+    st.session_state.pending_order = None
+    
+if "order_start_time" not in st.session_state:
+    st.session_state.order_start_time = None
     
 if "table_number" not in st.session_state:
     table_param = st.query_params.get("table", "1")
@@ -216,6 +223,46 @@ with col2:
     st.success(f"🪑 Table {st.session_state.table_number}")
 st.markdown("---")
 
+# ── PENDING ORDER TIMER ──
+if st.session_state.pending_order:
+    elapsed = (datetime.now() - st.session_state.order_start_time).total_seconds()
+    remaining = 120 - elapsed
+    
+    if remaining > 0:
+        st.warning(f"⏳ **Pending Order:** {st.session_state.pending_order['name']}'s {st.session_state.pending_order['size']} {st.session_state.pending_order['coffee']}")
+        st.write(f"⏱️ **Auto-confirming in {int(remaining)} seconds...**")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✏️ Cancel / Change Order", use_container_width=True):
+                st.session_state.pending_order = None
+                st.session_state.order_start_time = None
+                st.rerun()
+        with c2:
+            if st.button("✅ Confirm Now", use_container_width=True, type="primary"):
+                st.session_state.pending_order["status"] = "confirmed"
+                st.session_state.orders.append(st.session_state.pending_order)
+                db.collection("orders").add(st.session_state.pending_order)
+                st.session_state.pending_order = None
+                st.session_state.order_start_time = None
+                st.success("✅ Order confirmed successfully!")
+                st.balloons()
+                st.rerun()
+        
+        # Refresh every 1 second to update timer
+        time.sleep(1)
+        st.rerun()
+    else:
+        st.session_state.pending_order["status"] = "confirmed"
+        st.session_state.orders.append(st.session_state.pending_order)
+        db.collection("orders").add(st.session_state.pending_order)
+        st.session_state.pending_order = None
+        st.session_state.order_start_time = None
+        st.success("✅ Order confirmed automatically!")
+        st.balloons()
+        st.rerun()
+st.markdown("---")
+
 # ── MENU IMAGES ──
 st.subheader("Our Coffee Menu ☕")
 col1, col2, col3 = st.columns(3)
@@ -364,12 +411,12 @@ if user_input:
                     "coffee": parts[1],
                     "size": parts[2],
                     "time": datetime.now().strftime("%H:%M"),
-                    "status": "confirmed"
+                    "status": "pending"
                 }
-                st.session_state.orders.append(order)
-                db.collection("orders").add(order)
-                st.success(f"✅ Order #{order['order_id']} confirmed!")
-                st.balloons()
+                st.session_state.pending_order = order
+                st.session_state.order_start_time = datetime.now()
+                
+                st.info(f"⏳ Order #{order['order_id']} is pending. You have 2 minutes to change it!")
             
 
     # ── ORDER FORM ──
@@ -393,18 +440,17 @@ with st.form("coffee_order", clear_on_submit=True):
         order = {
             "order_id": len(st.session_state.orders) + 1,
             "name": customer_name,
-            "table": st.session_state.table_number,  # ✅ Uses auto-detected value
             "coffee": coffee_type,
             "size": size,
             "extras": extras if extras else [],
             "instructions": special_instructions if special_instructions else "None",
             "time": datetime.now().strftime("%H:%M"),
-            "status": "confirmed"
+            "status": "pending"
         }
-        st.session_state.orders.append(order)
-        db.collection("orders").add(order)
-        st.success(f"✅ Order #{order['order_id']} confirmed, {customer_name}!")
-        st.balloons()
+        st.session_state.pending_order = order
+        st.session_state.order_start_time = datetime.now()
+        
+        st.info(f"⏳ Order #{order['order_id']} is pending. You have 2 minutes to change it!")
         st.rerun()
     elif submitted and not customer_name:
         st.error("Please enter your name before placing order")
