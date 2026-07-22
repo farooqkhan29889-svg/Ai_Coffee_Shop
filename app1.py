@@ -506,7 +506,28 @@ with st.form("coffee_order", clear_on_submit=True):
         st.rerun()
     elif submitted and not customer_name:
         st.error("Please enter your name before placing order")
-        
+# ----- CURRANT ORDER -------
+if st.session_state.orders:
+    st.divider()
+    st.subheader(f"📋 Current Orders ({len(st.session_state.orders)})")
+    for order in reversed(st.session_state.orders[-10]):
+        with st.container():
+            col,col2,col3 = st.columns([3,2,1])
+            with col1:
+                st.write(f"**#{order['order_id']} - {order['name']}**")
+                st.write(f"☕ {order['size']} {order['coffee']}")
+            with col2:
+                st.write(f"⏱️ Time: {order['time']}")
+                st.write(f"📌 Status: ✅ {order['status']}")
+            with col3:
+                if st.button(f"✅ Done", key=f"done_{order['order_id']}"):
+                    order['status'] = "completed"
+                    st.rerun()
+            st.divider()
+else:
+    st.info("No orders yet")
+st.divider()
+
 # ── ANALYTICS ──
 if len(st.session_state.orders) > 0:
     st.divider()
