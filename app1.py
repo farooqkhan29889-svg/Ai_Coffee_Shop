@@ -510,9 +510,9 @@ with st.form("coffee_order", clear_on_submit=True):
 if st.session_state.orders:
     st.divider()
     st.subheader(f"📋 Current Orders ({len(st.session_state.orders)})")
-    for order in reversed(st.session_state.orders[-10]):
+    for order in reversed(st.session_state.orders[-10:]):
         with st.container():
-            col,col2,col3 = st.columns([3,2,1])
+            col1,col2,col3 = st.columns([3,2,1])
             with col1:
                 st.write(f"**#{order['order_id']} - {order['name']}**")
                 st.write(f"☕ {order['size']} {order['coffee']}")
