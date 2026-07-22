@@ -9,6 +9,15 @@ from payment import calculate_bill, generate_bill_text
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
 import time
 
+# ✅ ADD THIS TOO
+import streamlit.components.v1 as components
+components.html("""
+    <script>
+        window.scrollTo(0, 0);
+    </script>
+""", height=0)
+
+
 load_dotenv()
 st.set_page_config(page_title="Nova Coffee", page_icon="☕", layout="wide")
 
@@ -415,8 +424,8 @@ if user_input:
                 }
                 st.session_state.pending_order = order
                 st.session_state.order_start_time = datetime.now()
-                
                 st.info(f"⏳ Order #{order['order_id']} is pending. You have 2 minutes to change it!")
+                st.rerun()
             
 
     # ── ORDER FORM ──
