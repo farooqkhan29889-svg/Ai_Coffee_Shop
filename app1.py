@@ -423,19 +423,6 @@ if user_input:
             st.divider()
             st.subheader("💳 Choose Payment Method")
             
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if st.button("💳 Pay with Card", use_container_width=True):
-                    st.info("Opening payment gateway...")
-            
-            with col2:
-                if st.button("📱 Pay with UPI", use_container_width=True):
-                    st.info("Opening UPI payment...")
-            
-            with col3:
-                if st.button("💵 Pay with Cash on Delivery"):
-                    st.success("✅ Please pay cash at counter!")
         else:
             st.error("❌ No orders yet!")
     
@@ -465,12 +452,57 @@ if user_input:
                     "time": datetime.now().strftime("%H:%M"),
                     "status": "pending"
                 }
-                st.session_state.pending_order = order
-                st.session_state.order_start_time = datetime.now()
-                st.info(f"⏳ Order #{order['order_id']} is pending. You have 2 minutes to change it!")
-                st.rerun()
+                st.session_state.temp_order = order
+                bill_data = calculate_bill([order])
+                bill_text = generate_bill_text(bill_data, language)
+                with st.chat_message("assistant"):
+                    st.markdown()
+                # Step 4: REQUIRE payment (NEW!)
+                st.divider()
+                st.subheader("💳 Payment Required to Confirm Order")
+                
+                col1,col2,col3 = st.columns(3)
+                with col1:
+                    if st.button("💵 Cash on Counter", use_container_width=True):
+                        order["payment_method"] = "Cash"
+                        order["payment_status"] = "Pay at counter"
+                        
+                        # ONLY NOW add to orders!
+                        st.session_state.orders.append(order)
+                        db.collection("orders").add(order)
+                        
+                        st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Order received!")
+                        st.balloons()
+                        st.rerun()
+                
+                with col2:
+                    if st.button("📱 Pay with UPI", use_container_width=True):
+                        st.info("🔄 Opening UPI payment gateway...")
+                        # TODO: Integrate Razorpay UPI
+                
+                        order['payment_method'] = 'UPI'
+                        order['payment_status'] = 'Paid'
+                        st.session_state.orders.append(order)
+                        db.collection("orders").add(order)
+                
+                        st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Payment received!")
+                        st.balloons()
+                        st.rerun()
+                     
+                with col3:
+                    if st.button("💳 Pay with CARD", use_container_width=True):
+                        order["payment_method"] = "CARD"
+                        order["payment_status"] = "Paid"
+                        
+                        # ONLY NOW ADD TO ORDERS
+                        st.session_state.orders.append(order)
+                        db.collection("orders").add(order)
+                        
+                        st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Payment received!")
+                        st.balloons()
+                        st.rerun()
+                st.warning("⚠️ Select a payment method to confirm order!")
             
-
     # ── ORDER FORM ──
 # ── ORDER FORM ──
 st.divider()
@@ -481,7 +513,7 @@ with st.form("coffee_order", clear_on_submit=True):
     with col1:
         customer_name = st.text_input("📝 Your name", placeholder="Enter your name")
         coffee_type = st.selectbox("☕ Coffee type", ["Latte", "Americano", "Cappuccino", "Espresso", "Mocha", "Flat White"])
-    
+        
     with col2:
         size = st.radio("📏 Size", ["Small", "Medium", "Large"], horizontal=True)
         extras = st.multiselect("➕ Extras", ["Extra shot", "Vanilla syrup", "Caramel syrup", "Oat milk", "Whipped cream"])

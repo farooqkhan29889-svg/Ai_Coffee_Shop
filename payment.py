@@ -15,8 +15,8 @@ PRICES = {
 def create_razorpay_order(amount, customer_name, customer_email):
     """Create Razorpay order for payment"""
     try:
-        RAZORPAY_KEY_ID = os.getenv("rzp_test_TC4cf8wdKgW4Qj")
-        RAZORPAY_KEY_SECRET = os.getenv("OQu6jSCrX6EENF7Rb5mKzUuh")
+        RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+        RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
         
         client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
         
