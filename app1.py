@@ -456,7 +456,7 @@ if user_input:
                 bill_data = calculate_bill([order])
                 bill_text = generate_bill_text(bill_data, language)
                 with st.chat_message("assistant"):
-                    st.markdown()
+                    st.markdown(bill_text)
                 # Step 4: REQUIRE payment (NEW!)
                 st.divider()
                 st.subheader("💳 Payment Required to Confirm Order")
