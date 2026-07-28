@@ -115,14 +115,18 @@ for order in orders:
 
         cal1, cal2, cal3 = st.columns([1, 2, 3])
 
-        with cal1:
-            if st.button("👨‍🍳 Preparing", key=f"prep_{order['doc_id']}"):  # ✅ UNIQUE!
-                db.collection("orders").document(order['doc_id']).update({"status": "preparing"})
-                
         with cal2:
             time_mins = st.number_input(
                 "Minutes:", min_value=1, value=5, key=f"time_{order['doc_id']}"
             )
+
+        with cal1:
+            if st.button("👨‍🍳 Preparing", key=f"prep_{order['doc_id']}"):  # ✅ UNIQUE!
+                db.collection("orders").document(order['doc_id']).update({
+                    "status": "preparing",
+                    "estimated_time": time_mins
+                })
+                st.rerun()
 
         with cal3:
             if st.button("✅ Ready", key=f"ready_{order['doc_id']}"):  # ✅ UNIQUE!

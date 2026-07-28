@@ -60,6 +60,9 @@ if "messeges" not in st.session_state:
 if "orders" not in st.session_state:
     st.session_state.orders = []
 
+if "cart" not in st.session_state:
+    st.session_state.cart = []
+
 if "pending_order" not in st.session_state:
     st.session_state.pending_order = None
     
@@ -118,12 +121,12 @@ OR if English:
 ✅ "₹250"
 
 Our Coffee Menu:
-- Cappuccino/कैपुचिनो: S:₹150 | M:₹200 | L:₹250
-- Latte/लैट्टे: S:₹150 | M:₹200 | L:₹250
-- Americano/अमेरिकानो: S:₹150 | M:₹200 | L:₹250
-- Espresso/एस्प्रेसो: S:₹150 | M:₹200 | L:₹250
-- Mocha/मोका: S:₹150 | M:₹200 | L:₹250
-- Flat White/फ्लैट व्हाइट: S:₹150 | M:₹200 | L:₹250
+- Cappuccino/कैपुचिनो: S:₹150 | L:₹250
+- Latte/लैट्टे: S:₹150 | L:₹250
+- Americano/अमेरिकानो: S:₹150 | L:₹250
+- Espresso/एस्प्रेसो: S:₹150 | L:₹250
+- Mocha/मोका: S:₹150 | L:₹250
+- Flat White/फ्लैट व्हाइट: S:₹150 | L:₹250
 
 IMPORTANT:
 1. Ask for: Name → Coffee Type → Size (in selected language ONLY)
@@ -136,12 +139,12 @@ IMPORTANT:
 Remember: {language} ONLY. NO MIXING.)
 
 Our Coffee Menu:
-- Latte ☕ → S:₹150 | M:₹200 | L:₹250
-- Americano ☕ → S:₹150 | M:₹200 | L:₹250
-- Cappuccino ☕ → S:₹150 | M:₹200 | L:₹250
-- Espresso ☕ → S:₹150 | M:₹200 | L:₹250
-- Mocha ☕ → S:₹150 | M:₹200 | L:₹250
-- Flat White ☕ → S:₹150 | M:₹200 | L:₹250
+- Latte ☕ → S:₹150 | L:₹250
+- Americano ☕ → S:₹150 | L:₹250
+- Cappuccino ☕ → S:₹150 | L:₹250
+- Espresso ☕ → S:₹150 | L:₹250
+- Mocha ☕ → S:₹150 | L:₹250
+- Flat White ☕ → S:₹150 | L:₹250
 
 Our Sweets Menu:
 - Cookies 🍪 → ₹100
@@ -247,7 +250,7 @@ with st.sidebar:
     tempretur = st.slider("Temperature", 0.0, 1.0, 0.70, 0.05)
     st.divider()
     st.metric("Chat Messages", len(st.session_state.messeges))
-    st.metric("Coffee Orders", len(st.session_state.orders))
+    st.metric("Coffee Orders And Sweets", len(st.session_state.orders))
     st.divider()
     now = datetime.now()
     st.write(f"📅 Date: {now.strftime('%d %b %Y')}")
@@ -320,24 +323,42 @@ st.subheader("Our Coffee Menu ☕")
 col1, col2, col3 = st.columns(3)
 with col1:
     st.image("images/cappuccino.jpg", width=200)
-    st.markdown("**Cappuccino** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Cappuccino**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="cap_s"): st.session_state.cart.append({"item": "Cappuccino", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="cap_l"): st.session_state.cart.append({"item": "Cappuccino", "size": "Large", "price": 250})
 with col2:
     st.image("images/latte.jpg", width=200)
-    st.markdown("**Latte** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Latte**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="lat_s"): st.session_state.cart.append({"item": "Latte", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="lat_l"): st.session_state.cart.append({"item": "Latte", "size": "Large", "price": 250})
 with col3:
     st.image("images/black coffee.jpg", width=200)
-    st.markdown("**Black coffee** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Black coffee**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="blk_s"): st.session_state.cart.append({"item": "Black coffee", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="blk_l"): st.session_state.cart.append({"item": "Black coffee", "size": "Large", "price": 250})
 
 col4, col5, col6 = st.columns(3)
 with col4:
     st.image("images/espresso.jpg", width=200)
-    st.markdown("**Espresso** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Espresso**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="esp_s"): st.session_state.cart.append({"item": "Espresso", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="esp_l"): st.session_state.cart.append({"item": "Espresso", "size": "Large", "price": 250})
 with col5:
     st.image("images/americano.jpg", width=200)
-    st.markdown("**Americano** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Americano**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="amr_s"): st.session_state.cart.append({"item": "Americano", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="amr_l"): st.session_state.cart.append({"item": "Americano", "size": "Large", "price": 250})
 with col6:
     st.image("images/flat-white.jpg", width=200)
-    st.markdown("**Flat White** - S:₹150 | M:₹200 | L:₹250")
+    st.markdown("**Flat White**")
+    c1, c2 = st.columns(2)
+    if c1.button("Small ₹150", key="flt_s"): st.session_state.cart.append({"item": "Flat White", "size": "Small", "price": 150})
+    if c2.button("Large ₹250", key="flt_l"): st.session_state.cart.append({"item": "Flat White", "size": "Large", "price": 250})
     
 # ── MENU IMAGES ──
 st.subheader("Our Sweets Menu 🍵")
@@ -345,23 +366,29 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.image("images/cookies.jpg", width=200)
     st.markdown("**Cookies** - ₹100")
+    if st.button("Add to Cart", key="cookie"): st.session_state.cart.append({"item": "Cookies", "size": "-", "price": 100})
 with col2:
     st.image("images/chocolate-cake.jpg", width=200)
     st.markdown("**Chocolate Cake** 🎂 → ₹150")
+    if st.button("Add to Cart", key="cake"): st.session_state.cart.append({"item": "Chocolate Cake", "size": "-", "price": 150})
 with col3:
     st.image("images/muffins.jpg", width=200)
     st.markdown("**Muffins** 🧁 → ₹140")
+    if st.button("Add to Cart", key="muffin"): st.session_state.cart.append({"item": "Muffins", "size": "-", "price": 140})
 
 col4, col5, col6 = st.columns(3)
 with col4:
     st.image("images/brownie.jpg", width=200)
     st.markdown("**Brownie** - 🍫 → ₹160")
+    if st.button("Add to Cart", key="brownie"): st.session_state.cart.append({"item": "Brownie", "size": "-", "price": 160})
 with col5:
     st.image("images/gulab jamun.jpg", width=200)
     st.markdown("**Gulab Jamun** -  🍮 → ₹20")
+    if st.button("Add to Cart", key="gulab"): st.session_state.cart.append({"item": "Gulab Jamun", "size": "-", "price": 20})
 with col6:
     st.image("images/ras malai.jpg", width=200)
     st.markdown("**Ras Mlai** - 🥟 → ₹15")
+    if st.button("Add to Cart", key="rasmalai"): st.session_state.cart.append({"item": "Ras Mlai", "size": "-", "price": 15})
      
 # ---- CHAT AREA ------
 st.subheader("Chat With Nova 🤖")
@@ -468,8 +495,9 @@ if user_input:
                         order["payment_status"] = "Pay at counter"
                         
                         # ONLY NOW add to orders!
+                        _, doc_ref = db.collection("orders").add(order)
+                        order["doc_id"] = doc_ref.id
                         st.session_state.orders.append(order)
-                        db.collection("orders").add(order)
                         
                         st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Order received!")
                         st.balloons()
@@ -482,8 +510,9 @@ if user_input:
                 
                         order['payment_method'] = 'UPI'
                         order['payment_status'] = 'Paid'
+                        _, doc_ref = db.collection("orders").add(order)
+                        order["doc_id"] = doc_ref.id
                         st.session_state.orders.append(order)
-                        db.collection("orders").add(order)
                 
                         st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Payment received!")
                         st.balloons()
@@ -495,65 +524,105 @@ if user_input:
                         order["payment_status"] = "Paid"
                         
                         # ONLY NOW ADD TO ORDERS
+                        _, doc_ref = db.collection("orders").add(order)
+                        order["doc_id"] = doc_ref.id
                         st.session_state.orders.append(order)
-                        db.collection("orders").add(order)
                         
                         st.success(f"✅ Order #{order['order_id']} Confirmed!\n\n🎉 Payment received!")
                         st.balloons()
                         st.rerun()
                 st.warning("⚠️ Select a payment method to confirm order!")
             
-    # ── ORDER FORM ──
-# ── ORDER FORM ──
+# ── SHOPPING CART ──
 st.divider()
-st.subheader("☕ Nova's Coffee Order")
+st.subheader("🛒 Your Cart")
 
-with st.form("coffee_order", clear_on_submit=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        customer_name = st.text_input("📝 Your name", placeholder="Enter your name")
-        coffee_type = st.selectbox("☕ Coffee type", ["Latte", "Americano", "Cappuccino", "Espresso", "Mocha", "Flat White"])
+if not st.session_state.cart:
+    st.info("Your cart is empty. Click on items in the menu above to add them!")
+else:
+    total_price = 0
+    for i, item in enumerate(st.session_state.cart):
+        c1, c2, c3 = st.columns([3, 1, 1])
+        with c1:
+            size_str = f" ({item['size']})" if item['size'] != "-" else ""
+            st.write(f"**{item['item']}**{size_str}")
+        with c2:
+            st.write(f"₹{item['price']}")
+        with c3:
+            if st.button("❌ Remove", key=f"remove_{i}"):
+                st.session_state.cart.pop(i)
+                st.rerun()
+        total_price += item['price']
         
-    with col2:
-        size = st.radio("📏 Size", ["Small", "Medium", "Large"], horizontal=True)
-        extras = st.multiselect("➕ Extras", ["Extra shot", "Vanilla syrup", "Caramel syrup", "Oat milk", "Whipped cream"])
-        special_instructions = st.text_area("📝 Special instructions (optional)")
-        submitted = st.form_submit_button("✅ Place Order", use_container_width=True, type="primary")
+    st.markdown(f"### Total: ₹{total_price}")
     
-    if submitted and customer_name:
-        order = {
-            "order_id": len(st.session_state.orders) + 1,
-            "name": customer_name,
-            "coffee": coffee_type,
-            "size": size,
-            "extras": extras if extras else [],
-            "instructions": special_instructions if special_instructions else "None",
-            "time": datetime.now().strftime("%H:%M"),
-            "status": "pending"
-        }
-        st.session_state.pending_order = order
-        st.session_state.order_start_time = datetime.now()
+    with st.form("checkout_form"):
+        customer_name = st.text_input("📝 Your name to complete order:", placeholder="Enter your name")
+        submitted = st.form_submit_button("✅ Checkout & Place Order", type="primary", use_container_width=True)
         
-        st.info(f"⏳ Order #{order['order_id']} is pending. You have 2 minutes to change it!")
-        st.rerun()
-    elif submitted and not customer_name:
-        st.error("Please enter your name before placing order")
+        if submitted and customer_name:
+            for item in st.session_state.cart:
+                order = {
+                    "order_id": len(st.session_state.orders) + 1,
+                    "name": customer_name,
+                    "coffee": item['item'],
+                    "size": item['size'],
+                    "time": datetime.now().strftime("%H:%M"),
+                    "status": "pending"
+                }
+                _, doc_ref = db.collection("orders").add(order)
+                order["doc_id"] = doc_ref.id
+                st.session_state.orders.append(order)
+            
+            st.session_state.cart = []
+            st.success("✅ Order placed successfully! Check 'Current Orders' below.")
+            st.balloons()
+            st.rerun()
+        elif submitted and not customer_name:
+            st.error("Please enter your name before checking out")
 # ----- CURRANT ORDER -------
 if st.session_state.orders:
     st.divider()
     st.subheader(f"📋 Current Orders ({len(st.session_state.orders)})")
+    
+    # Auto-refresh if there are active orders
+    if any(o.get('status') in ['pending', 'preparing'] for o in st.session_state.orders):
+        try:
+            from streamlit_autorefresh import st_autorefresh
+            st_autorefresh(interval=5000, key="order_refresh")
+        except ImportError:
+            pass
+
     for order in reversed(st.session_state.orders[-10:]):
+        # Sync with Firebase if we have doc_id
+        if "doc_id" in order and order.get('status') not in ['completed']:
+            doc = db.collection("orders").document(order["doc_id"]).get()
+            if doc.exists:
+                db_data = doc.to_dict()
+                order['status'] = db_data.get('status', order.get('status', 'pending'))
+                if 'estimated_time' in db_data:
+                    order['estimated_time'] = db_data['estimated_time']
+                    
         with st.container():
             col1,col2,col3 = st.columns([3,2,1])
             with col1:
                 st.write(f"**#{order['order_id']} - {order['name']}**")
                 st.write(f"☕ {order['size']} {order['coffee']}")
+                
+                if order.get('status') == 'preparing':
+                    mins = order.get('estimated_time', 5)
+                    st.warning(f"👨‍🍳 **Your order is preparing! It will take {mins} minutes.**")
+                elif order.get('status') == 'ready':
+                    st.success(f"✅ **Your order is Ready for pickup!**")
+                    
             with col2:
                 st.write(f"⏱️ Time: {order['time']}")
-                st.write(f"📌 Status: ✅ {order['status']}")
+                st.write(f"📌 Status: {order.get('status', 'unknown').upper()}")
             with col3:
                 if st.button(f"✅ Done", key=f"done_{order['order_id']}"):
                     order['status'] = "completed"
+                    if "doc_id" in order:
+                        db.collection("orders").document(order["doc_id"]).update({"status": "completed"})
                     st.rerun()
             st.divider()
 else:
@@ -571,7 +640,7 @@ if len(st.session_state.orders) > 0:
         st.write("**Popular coffees today:**")
         for coffee, count in sorted(coffee_counts.items(), key=lambda x: x[1], reverse=True):
             st.write(f"- {coffee}: {count} order(s)")
-        prices = {"Small": 150, "Medium": 200, "Large": 250}
+        prices = {"Small": 150, "Large": 250}
         total_revenue = sum(prices.get(order['size'], 0) for order in st.session_state.orders)
         st.metric("💰 Estimated Revenue", f"₹{total_revenue}")
 
