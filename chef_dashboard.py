@@ -89,7 +89,15 @@ try:
    orders = [{"doc_id": doc.id, **doc.to_dict()} for doc in docs]  # ✅ WITH doc_id!
 except Exception as e:
     st.error(f"Firebase error {e}")
-    order = []
+    orders = []
+
+# Sort orders newest-first (using created_at, or order_id)
+def get_order_sort_key(o):
+    if "created_at" in o and o["created_at"]:
+        return str(o["created_at"])
+    return f"{o.get('order_id', 0):010d}" if isinstance(o.get('order_id'), int) else str(o.get('order_id', ''))
+
+orders.sort(key=get_order_sort_key, reverse=True)
 
 # ---- Header ----
 st.markdown(f"<p class='total-orders'>📋 Total Orders: {len(orders)}</p>", unsafe_allow_html=True)
@@ -103,11 +111,21 @@ for order in orders:
     status = order.get("status", "pending")
     status_class = f"status-{status}"
 
+    if order.get("items") and isinstance(order["items"], list):
+        items_html = ""
+        for it in order["items"]:
+            item_name = it.get("item", it.get("item_name", it.get("coffee", "")))
+            size = it.get("size", "")
+            size_str = f" ({size})" if size and size != "-" else ""
+            items_html += f"<p>☕ <b>{item_name}</b>{size_str}</p>"
+    else:
+        items_html = f"<p>☕ <b>{order.get('size', '')} {order.get('coffee', '')}</b></p>"
+
     with st.container():
         st.markdown(f"""
         <div class="order-card">
             <h3>Order #{order.get('order_id', 'N/A')} — {order.get('name', 'Unknown')}</h3>
-            <p>☕ <b>{order.get('size', '')} {order.get('coffee', '')}</b></p>
+            {items_html}
             <p>🪑 Table: {order.get('table', 'N/A')}</p>
             <p>Status: <span class="{status_class}">{status.upper()}</span></p>
         </div>
