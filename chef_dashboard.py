@@ -121,12 +121,17 @@ for order in orders:
     else:
         items_html = f"<p>☕ <b>{order.get('size', '')} {order.get('coffee', '')}</b></p>"
 
+    pay_method = order.get("payment_method", "N/A")
+    pay_status = order.get("payment_status", "Unpaid")
+    pay_badge = f"{pay_method} ({pay_status})" if pay_method != "N/A" else pay_status
+
     with st.container():
         st.markdown(f"""
         <div class="order-card">
             <h3>Order #{order.get('order_id', 'N/A')} — {order.get('name', 'Unknown')}</h3>
             {items_html}
             <p>🪑 Table: {order.get('table', 'N/A')}</p>
+            <p>💳 Payment: <b>{pay_badge}</b></p>
             <p>Status: <span class="{status_class}">{status.upper()}</span></p>
         </div>
         """, unsafe_allow_html=True)

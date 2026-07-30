@@ -602,7 +602,7 @@ else:
     
     with st.form("checkout_form"):
         customer_name = st.text_input("📝 Your name to complete order:", placeholder="Enter your name")
-        submitted = st.form_submit_button("✅ Checkout & Place Order", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("✅ Continue to Payment", type="primary", use_container_width=True)
         
         if submitted and customer_name:
             items_list = [
@@ -613,7 +613,7 @@ else:
                 } for item in st.session_state.cart
             ]
             primary_coffee = ", ".join([it["item"] for it in items_list])
-            order = {
+            st.session_state.pending_cart_order = {
                 "order_id": len(st.session_state.orders) + 1,
                 "name": customer_name,
                 "table": st.session_state.table_number,
@@ -622,19 +622,55 @@ else:
                 "items": items_list,
                 "time": datetime.now().strftime("%H:%M"),
                 "created_at": datetime.now().isoformat(),
-                "status": "pending",
-                "payment_status": "Pending"
+                "status": "pending"
             }
-            _, doc_ref = db.collection("orders").add(order)
-            order["doc_id"] = doc_ref.id
-            st.session_state.orders.append(order)
-            
-            st.session_state.cart = []
-            st.success("✅ Order placed successfully! Check 'Current Orders' below.")
-            st.balloons()
             st.rerun()
         elif submitted and not customer_name:
-            st.error("Please enter your name before checking out")
+            st.error("Please enter your name before proceeding")
+
+    if st.session_state.get("pending_cart_order"):
+        pending_o = st.session_state.pending_cart_order
+        st.divider()
+        st.subheader("💳 Payment Required to Confirm Order")
+        st.warning(f"⚠️ Select payment method to confirm {pending_o['name']}'s order!")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("💵 Cash on Counter", key="cart_cash", use_container_width=True):
+                pending_o["payment_method"] = "Cash"
+                pending_o["payment_status"] = "Pay at counter"
+                _, doc_ref = db.collection("orders").add(pending_o)
+                pending_o["doc_id"] = doc_ref.id
+                st.session_state.orders.append(pending_o)
+                st.session_state.cart = []
+                st.session_state.pending_cart_order = None
+                st.success("✅ Order confirmed & sent to kitchen!")
+                st.balloons()
+                st.rerun()
+        with col2:
+            if st.button("📱 Pay with UPI", key="cart_upi", use_container_width=True):
+                pending_o["payment_method"] = "UPI"
+                pending_o["payment_status"] = "Paid"
+                _, doc_ref = db.collection("orders").add(pending_o)
+                pending_o["doc_id"] = doc_ref.id
+                st.session_state.orders.append(pending_o)
+                st.session_state.cart = []
+                st.session_state.pending_cart_order = None
+                st.success("✅ Order confirmed & sent to kitchen!")
+                st.balloons()
+                st.rerun()
+        with col3:
+            if st.button("💳 Pay with CARD", key="cart_card", use_container_width=True):
+                pending_o["payment_method"] = "CARD"
+                pending_o["payment_status"] = "Paid"
+                _, doc_ref = db.collection("orders").add(pending_o)
+                pending_o["doc_id"] = doc_ref.id
+                st.session_state.orders.append(pending_o)
+                st.session_state.cart = []
+                st.session_state.pending_cart_order = None
+                st.success("✅ Order confirmed & sent to kitchen!")
+                st.balloons()
+                st.rerun()
 # ----------- 
 # ----- CURRANT ORDER -------
 if st.session_state.orders:
