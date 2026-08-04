@@ -69,9 +69,6 @@ if "show_receipt_for" not in st.session_state:
 if "ready_notified" not in st.session_state:
     st.session_state.ready_notified = set()
 
-if "orders_loaded_from_db" not in st.session_state:
-    st.session_state.orders_loaded_from_db = False
-
 if "table_number" not in st.session_state:
     table_param = st.query_params.get("table", "1")
     try:
@@ -107,22 +104,6 @@ def item_price(item_name, size):
             qty = int(nums[0])
         return FOOD_PRICES[item_name] * qty
     return 0
-
-# ---- Reload this table's orders from Firebase (survives page refresh) ----
-if not st.session_state.orders_loaded_from_db:
-    st.session_state.orders_loaded_from_db = True
-    try:
-        docs = db.collection("orders").where("table", "==", st.session_state.table_number).stream()
-        for doc in docs:
-            data = doc.to_dict()
-            if "doc_id" not in data:
-                data["doc_id"] = doc.id
-            if not any(o.get("doc_id") == doc.id for o in st.session_state.orders):
-                st.session_state.orders.append(data)
-            if data.get("status") == "ready":
-                st.session_state.ready_notified.add(data.get("doc_id") or data.get("order_id"))
-    except Exception:
-        pass
 
 
 #  ------ create chat histroy ----------
