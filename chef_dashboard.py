@@ -3,6 +3,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -125,6 +126,11 @@ for order in orders:
     pay_status = order.get("payment_status", "Unpaid")
     pay_badge = f"{pay_method} ({pay_status})" if pay_method != "N/A" else pay_status
 
+    est = order.get("estimated_time")
+    est_html = f"<p>⏱️ Est. waiting: <b>{est} min</b></p>" if est else ""
+    prep_at = order.get("preparing_at")
+    prep_html = f"<p>🔥 Started: {prep_at[:19].replace('T', ' ')}</p>" if prep_at else ""
+
     with st.container():
         st.markdown(f"""
         <div class="order-card">
@@ -133,27 +139,50 @@ for order in orders:
             <p>🪑 Table: {order.get('table', 'N/A')}</p>
             <p>💳 Payment: <b>{pay_badge}</b></p>
             <p>Status: <span class="{status_class}">{status.upper()}</span></p>
+            {est_html}
+            {prep_html}
         </div>
         """, unsafe_allow_html=True)
 
         cal1, cal2, cal3 = st.columns([1, 2, 3])
 
         with cal2:
+            quick1, quick2 = st.columns(2)
+            with quick1:
+                if st.button("⏱️ 10 min", key=f"t10_{order['doc_id']}", use_container_width=True):
+                    db.collection("orders").document(order['doc_id']).update({
+                        "status": "preparing",
+                        "estimated_time": 10,
+                        "preparing_at": datetime.now().isoformat()
+                    })
+                    st.rerun()
+            with quick2:
+                if st.button("⏱️ 15 min", key=f"t15_{order['doc_id']}", use_container_width=True):
+                    db.collection("orders").document(order['doc_id']).update({
+                        "status": "preparing",
+                        "estimated_time": 15,
+                        "preparing_at": datetime.now().isoformat()
+                    })
+                    st.rerun()
             time_mins = st.number_input(
-                "Minutes:", min_value=1, value=5, key=f"time_{order['doc_id']}"
+                "Custom minutes:", min_value=1, value=5, key=f"time_{order['doc_id']}"
             )
 
         with cal1:
             if st.button("👨‍🍳 Preparing", key=f"prep_{order['doc_id']}"):  # ✅ UNIQUE!
                 db.collection("orders").document(order['doc_id']).update({
                     "status": "preparing",
-                    "estimated_time": time_mins
+                    "estimated_time": time_mins,
+                    "preparing_at": datetime.now().isoformat()
                 })
                 st.rerun()
 
         with cal3:
             if st.button("✅ Ready", key=f"ready_{order['doc_id']}"):  # ✅ UNIQUE!
-                db.collection("orders").document(order['doc_id']).update({"status": "ready"})
+                db.collection("orders").document(order['doc_id']).update({
+                    "status": "ready",
+                    "ready_at": datetime.now().isoformat()
+                })
                 st.success(f"Order #{order.get('order_id')} is Ready!")
                 st.rerun()
 

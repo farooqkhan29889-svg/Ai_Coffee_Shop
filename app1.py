@@ -5,7 +5,7 @@ import os
 import streamlit as st
 from langchain_groq import ChatGroq
 from datetime import datetime, timedelta
-from payment import calculate_bill, generate_bill_text
+from payment import calculate_bill, generate_bill_text, applied_offer
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
 import time
 
@@ -19,7 +19,7 @@ components.html("""
 
 
 load_dotenv()
-st.set_page_config(page_title="Nova Coffee", page_icon="☕", layout="wide")
+st.set_page_config(page_title="Nova Coffee", page_icon=":material/local_cafe:", layout="wide", initial_sidebar_state="collapsed")
 
 # Add this after your title
 st.subheader("🌐Select Language / भाषा चुनें")
@@ -65,6 +65,9 @@ if "cart" not in st.session_state:
 
 if "show_receipt_for" not in st.session_state:
     st.session_state.show_receipt_for = None
+
+if "ready_notified" not in st.session_state:
+    st.session_state.ready_notified = set()
 
 if "pending_order" not in st.session_state:
     st.session_state.pending_order = None
@@ -206,80 +209,87 @@ def load_llm():
 llm = load_llm()
 
 # ── CSS ──
-st.markdown("""
+st.html("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@400;500&display=swap');
-
 .stApp {
-    background-color: #0a0a0f;
-    color: #ffffff;
+    background:
+        radial-gradient(1100px 700px at 88% -5%, rgba(201,162,75,0.14), transparent 60%),
+        radial-gradient(900px 650px at -5% 105%, rgba(201,162,75,0.10), transparent 55%),
+        linear-gradient(165deg, #0f0e13 0%, #141218 50%, #0b0a0e 100%);
+}
+[data-testid="stHeader"] { background: transparent; }
+.block-container { padding-top: 2.2rem; padding-bottom: 3rem; }
+
+h1, h2, h3 {
+    background: linear-gradient(90deg, #F5E6C4, #C9A24B 55%, #F5E6C4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 [data-testid="stSidebar"] {
-    background-color: #0d0d1a;
-    border-right: 1px solid #333;
-}
-
-h1, h2, h3 {
-    color: #ff6b35 !important;
-    font-family: 'Orbitron', monospace !important;
+    background: linear-gradient(180deg, #141218 0%, #100e13 100%);
+    border-right: 1px solid rgba(201,162,75,0.15);
 }
 
 [data-testid="stChatMessage"] {
-    background-color: #00ffcc !important;
-    border: 1px solid #333;
-    border-radius: 15px;
+    border-radius: 16px;
+    padding: 12px 16px;
 }
-[data-testid="stChatMessage"] p {
-    font-weight: bold !important;
-    font-size: 16px !important;
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    background: rgba(201,162,75,0.12);
+    border: 1px solid rgba(201,162,75,0.25);
 }
-[data-testid="stChatInput"] textarea {
-    background-color: #e74c3c !important;
-    color: white !important;
-    border: 1px solid #ff6b3544 !important;
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
 }
-[data-testid="stChatInput"] p {
-    font-weight: bold !important;
-    font-size: 20px !important;
+
+.stButton > button, [data-testid="stFormSubmitButton"] > button {
+    border-radius: 999px;
+    font-weight: 600;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(201,162,75,0.25);
+}
+
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 18px;
+    border-color: rgba(201,162,75,0.18) !important;
 }
 </style>
-""", unsafe_allow_html=True)
+""")
 
 # ----- siderbar -----
 with st.sidebar:
-    st.subheader("Nova Settings")
+    st.subheader(":material/tune: Nova Settings")
     ai_model = st.selectbox("AI Model", ["llama-3.1-8b-instant", "mixtral-8x7b-32768"])
     tempretur = st.slider("Temperature", 0.0, 1.0, 0.70, 0.05)
-    st.divider()
+    st.space("small")
     st.metric("Chat Messages", len(st.session_state.messeges))
     st.metric("Coffee Orders And Sweets", len(st.session_state.orders))
-    st.divider()
     now = datetime.now()
-    st.write(f"📅 Date: {now.strftime('%d %b %Y')}")
-    st.write(f"⏰ Time: {now.strftime('%I:%M %p')}")
-    st.divider()
+    st.caption(f":material/calendar_today: {now.strftime('%d %b %Y')}  •  {now.strftime('%I:%M %p')}")
+    st.space("medium")
     col1,col2 = st.columns(2)
     with col1:
-       if st.button("🗑️ Clear Chat", use_container_width=True):
+       if st.button(":material/delete_sweep: Clear chat", width="stretch"):
             st.session_state.messeges = []
             st.session_state.chat_history = [st.session_state.chat_history[0]]
             st.rerun()
     with col2:
-        if st.button("🧾 Clear Orders", use_container_width=True):
+        if st.button(":material/delete: Clear orders", width="stretch"):
            st.session_state.orders = []
-           st.rerun
+           st.rerun()
 
 # ----- Header ----------
-st.title("NOVA AI COFFEE SHOP")
-st.caption("Next-Gen AI Assistant - Built by Farooq | Now taking coffee orders!")
-
-# ✅ SHOW WHICH TABLE CUSTOMER IS AT
-st.markdown("---")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.success(f"🪑 Table {st.session_state.table_number}")
-st.markdown("---")
+with st.container(horizontal_alignment="center"):
+    st.title("NOVA AI COFFEE SHOP")
+    st.image("images/coffee.jpg", width="stretch")
+    st.caption("Premium AI Coffee Shop — order by chat, tap, or voice")
+    st.badge(f"Table {st.session_state.table_number}", icon=":material/table_restaurant:", color="orange")
 
 # ── PENDING ORDER TIMER ──
 if st.session_state.pending_order:
@@ -292,12 +302,12 @@ if st.session_state.pending_order:
         
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("✏️ Cancel / Change Order", use_container_width=True):
+            if st.button(":material/edit: Cancel / change", width="stretch"):
                 st.session_state.pending_order = None
                 st.session_state.order_start_time = None
                 st.rerun()
         with c2:
-            if st.button("✅ Confirm Now", use_container_width=True, type="primary"):
+            if st.button(":material/check_circle: Confirm now", width="stretch", type="primary"):
                 st.session_state.pending_order["status"] = "confirmed"
                 st.session_state.orders.append(st.session_state.pending_order)
                 db.collection("orders").add(st.session_state.pending_order)
@@ -325,15 +335,26 @@ def add_to_cart(item, size, price):
     st.session_state.cart.append({"item": item, "size": size, "price": price})
     st.toast(f"✨ Added {item} to cart!", icon="🛒")
 
-@st.dialog("🧾 Order Receipt")
+def menu_card(image_path, name, price_text, size_buttons):
+    with st.container(border=True):
+        st.image(image_path, width="stretch")
+        st.markdown(f"**{name}**", text_alignment="center")
+        if price_text:
+            st.caption(price_text, text_alignment="center")
+        cols = st.columns(len(size_buttons))
+        for col, (label, key, size, price) in zip(cols, size_buttons):
+            with col:
+                st.button(label, key=key, on_click=add_to_cart,
+                          args=(name, size, price), width="stretch")
+
+@st.dialog("🧾 Order receipt")
 def show_receipt(order):
     import random
     order_num = f"#{random.randint(1000, 9999)}"
-    st.markdown(f"### Thank you, {order['name']}!")
-    st.write(f"**Receipt:** {order_num}")
-    st.write(f"**Order ID:** #{order['order_id']}")
-    st.write(f"**Time:** {order.get('time', '')}")
-    st.markdown("**Items Ordered:**")
+    st.markdown(f"### Thank you, {order['name']}!", text_alignment="center")
+    st.caption(f"Receipt: {order_num} · Order #{order['order_id']} · {order.get('time', '')}", text_alignment="center")
+    st.space("small")
+    st.markdown("**Items ordered:**")
     if order.get("items"):
         for sub_item in order["items"]:
             size_str = f" ({sub_item['size']})" if sub_item.get('size') and sub_item.get('size') != "-" else ""
@@ -341,88 +362,66 @@ def show_receipt(order):
     else:
         st.write(f"- {order.get('size', '')} {order.get('coffee', '')}")
     st.divider()
-    st.markdown("We hope you enjoy your order! ❤️")
-    if st.button("Close"):
+    if order.get("discount"):
+        st.write(f"🎟️ Coupon: {order.get('coupon_code', '')} (-₹{order['discount']})")
+        st.markdown(f"### Final Total: ₹{order.get('final_total', 0)}")
+    st.markdown("We hope you enjoy your order! ❤️", text_alignment="center")
+    if st.button(":material/close: Close", width="stretch"):
         st.session_state.show_receipt_for = None
         st.rerun()
 
 if st.session_state.show_receipt_for:
     show_receipt(st.session_state.show_receipt_for)
 
-# ── MENU IMAGES ──
-st.subheader("Our Coffee Menu ☕")
+# ── MENU ──
+st.subheader(":material/local_cafe: Our coffee menu")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.image("images/cappuccino.jpg", width=200)
-    st.markdown("**Cappuccino**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="cap_s", on_click=add_to_cart, args=("Cappuccino", "Small", 150))
-    st.button("Large ₹250", key="cap_l", on_click=add_to_cart, args=("Cappuccino", "Large", 250))
+    menu_card("images/cappuccino.jpg", "Cappuccino", "Small ₹150 · Large ₹250",
+              [("S ₹150", "cap_s", "Small", 150), ("L ₹250", "cap_l", "Large", 250)])
 with col2:
-    st.image("images/latte.jpg", width=200)
-    st.markdown("**Latte**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="lat_s", on_click=add_to_cart, args=("Latte", "Small", 150))
-    st.button("Large ₹250", key="lat_l", on_click=add_to_cart, args=("Latte", "Large", 250))
+    menu_card("images/latte.jpg", "Latte", "Small ₹150 · Large ₹250",
+              [("S ₹150", "lat_s", "Small", 150), ("L ₹250", "lat_l", "Large", 250)])
 with col3:
-    st.image("images/black coffee.jpg", width=200)
-    st.markdown("**Black coffee**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="blk_s", on_click=add_to_cart, args=("Black coffee", "Small", 150))
-    st.button("Large ₹250", key="blk_l", on_click=add_to_cart, args=("Black coffee", "Large", 250))
+    menu_card("images/black coffee.jpg", "Black Coffee", "Small ₹150 · Large ₹250",
+              [("S ₹150", "blk_s", "Small", 150), ("L ₹250", "blk_l", "Large", 250)])
 
 col4, col5, col6 = st.columns(3)
 with col4:
-    st.image("images/espresso.jpg", width=200)
-    st.markdown("**Espresso**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="esp_s", on_click=add_to_cart, args=("Espresso", "Small", 150))
-    st.button("Large ₹250", key="esp_l", on_click=add_to_cart, args=("Espresso", "Large", 250))
+    menu_card("images/espresso.jpg", "Espresso", "Small ₹150 · Large ₹250",
+              [("S ₹150", "esp_s", "Small", 150), ("L ₹250", "esp_l", "Large", 250)])
 with col5:
-    st.image("images/americano.jpg", width=200)
-    st.markdown("**Americano**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="amr_s", on_click=add_to_cart, args=("Americano", "Small", 150))
-    st.button("Large ₹250", key="amr_l", on_click=add_to_cart, args=("Americano", "Large", 250))
+    menu_card("images/americano.jpg", "Americano", "Small ₹150 · Large ₹250",
+              [("S ₹150", "amr_s", "Small", 150), ("L ₹250", "amr_l", "Large", 250)])
 with col6:
-    st.image("images/flat-white.jpg", width=200)
-    st.markdown("**Flat White**")
-    c1, c2 = st.columns(2)
-    st.button("Small ₹150", key="flt_s", on_click=add_to_cart, args=("Flat White", "Small", 150))
-    st.button("Large ₹250", key="flt_l", on_click=add_to_cart, args=("Flat White", "Large", 250))
-    
-# ── MENU IMAGES ──
-st.subheader("Our Sweets Menu 🍵")
+    menu_card("images/flat-white.jpg", "Flat White", "Small ₹150 · Large ₹250",
+              [("S ₹150", "flt_s", "Small", 150), ("L ₹250", "flt_l", "Large", 250)])
+
+st.subheader(":material/icecream: Our sweets menu")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.image("images/cookies.jpg", width=200)
-    st.markdown("**Cookies** - ₹100")
-    st.button("Add to Cart", key="cookie", on_click=add_to_cart, args=("Cookies", "-", 100))
+    menu_card("images/cookies.jpg", "Cookies", "₹100",
+              [("Add", "cookie", "-", 100)])
 with col2:
-    st.image("images/chocolate-cake.jpg", width=200)
-    st.markdown("**Chocolate Cake** 🎂 → ₹150")
-    st.button("Add to Cart", key="cake", on_click=add_to_cart, args=("Chocolate Cake", "-", 150))
+    menu_card("images/chocolate-cake.jpg", "Chocolate Cake", "₹150",
+              [("Add", "cake", "-", 150)])
 with col3:
-    st.image("images/muffins.jpg", width=200)
-    st.markdown("**Muffins** 🧁 → ₹140")
-    st.button("Add to Cart", key="muffin", on_click=add_to_cart, args=("Muffins", "-", 140))
+    menu_card("images/muffins.jpg", "Muffins", "₹140",
+              [("Add", "muffin", "-", 140)])
 
 col4, col5, col6 = st.columns(3)
 with col4:
-    st.image("images/brownie.jpg", width=200)
-    st.markdown("**Brownie** - 🍫 → ₹160")
-    st.button("Add to Cart", key="brownie", on_click=add_to_cart, args=("Brownie", "-", 160))
+    menu_card("images/brownie.jpg", "Brownie", "₹160",
+              [("Add", "brownie", "-", 160)])
 with col5:
-    st.image("images/gulab jamun.jpg", width=200)
-    st.markdown("**Gulab Jamun** -  🍮 → ₹20")
-    st.button("Add to Cart", key="gulab", on_click=add_to_cart, args=("Gulab Jamun", "-", 20))
+    menu_card("images/gulab jamun.jpg", "Gulab Jamun", "₹20",
+              [("Add", "gulab", "-", 20)])
 with col6:
-    st.image("images/ras malai.jpg", width=200)
-    st.markdown("**Ras Mlai** - 🥟 → ₹15")
-    st.button("Add to Cart", key="rasmalai", on_click=add_to_cart, args=("Ras Mlai", "-", 15))
-     
+    menu_card("images/ras malai.jpg", "Ras Mlai", "₹15",
+              [("Add", "rasmalai", "-", 15)])
+
 # ---- CHAT AREA ------
-st.subheader("Chat With Nova 🤖")
+st.subheader(":material/support_agent: Chat with Nova")
 
 for messeges in st.session_state.messeges:
     with st.chat_message(messeges["role"]):
@@ -430,7 +429,7 @@ for messeges in st.session_state.messeges:
 
 user_input = None
 
-audio_value = st.audio_input("Or speak to Nova 🎤")
+audio_value = st.audio_input("Or speak to Nova")
 
 if audio_value is not None:
     import hashlib
@@ -479,7 +478,7 @@ if user_input:
             
             #  PAYMENT OPTIONS
             st.divider()
-            st.subheader("💳 Choose Payment Method")
+            st.subheader(":material/payments: Choose payment method")
             
         else:
             st.error("❌ No orders yet!")
@@ -530,11 +529,11 @@ if user_input:
                     st.markdown(bill_text)
                 # Step 4: REQUIRE payment (NEW!)
                 st.divider()
-                st.subheader("💳 Payment Required to Confirm Order")
-                
+                st.subheader(":material/payments: Payment required to confirm order")
+
                 col1,col2,col3 = st.columns(3)
                 with col1:
-                    if st.button("💵 Cash on Counter", use_container_width=True):
+                    if st.button(":material/point_of_sale: Cash on counter", width="stretch"):
                         order["payment_method"] = "Cash"
                         order["payment_status"] = "Pay at counter"
                         
@@ -548,7 +547,7 @@ if user_input:
                         st.rerun()
                 
                 with col2:
-                    if st.button("📱 Pay with UPI", use_container_width=True):
+                    if st.button(":material/phone_iphone: Pay with UPI", width="stretch"):
                         st.info("🔄 Opening UPI payment gateway...")
                         # TODO: Integrate Razorpay UPI
                 
@@ -563,7 +562,7 @@ if user_input:
                         st.rerun()
                      
                 with col3:
-                    if st.button("💳 Pay with CARD", use_container_width=True):
+                    if st.button(":material/credit_card: Pay with card", width="stretch"):
                         order["payment_method"] = "CARD"
                         order["payment_status"] = "Paid"
                         
@@ -578,8 +577,7 @@ if user_input:
                 st.warning("⚠️ Select a payment method to confirm order!")
             
 # ── SHOPPING CART ──
-st.divider()
-st.subheader("🛒 Your Cart")
+st.subheader(":material/shopping_cart: Your cart")
 
 if not st.session_state.cart:
     st.info("Your cart is empty. Click on items in the menu above to add them!")
@@ -593,16 +591,30 @@ else:
         with c2:
             st.write(f"₹{item['price']}")
         with c3:
-            if st.button("❌ Remove", key=f"remove_{i}"):
+            if st.button(":material/close: Remove", key=f"remove_{i}", width="stretch"):
                 st.session_state.cart.pop(i)
                 st.rerun()
         total_price += item['price']
         
     st.markdown(f"### Total: ₹{total_price}")
-    
+    st.divider()
+    st.subheader(":material/confirmation_number: Apply coupon code")
+    coupon_code = st.text_input("Enter coupon code (optional):", placeholder="e.g., WELCOME10")
+
+    final_total = total_price
+    discount = 0
+    if coupon_code:
+        final_total, discount, message = applied_offer(coupon_code, st.session_state.cart, total_price)
+        if discount > 0:
+            st.success(f"✅ {message} — Discount: ₹{discount}")
+        else:
+            st.warning(message)
+    st.markdown(f"### 💰 Final Total: ₹{final_total}")
+
+            
     with st.form("checkout_form"):
         customer_name = st.text_input("📝 Your name to complete order:", placeholder="Enter your name")
-        submitted = st.form_submit_button("✅ Continue to Payment", type="primary", use_container_width=True)
+        submitted = st.form_submit_button(":material/payments: Continue to payment", type="primary", width="stretch")
         
         if submitted and customer_name:
             items_list = [
@@ -622,7 +634,10 @@ else:
                 "items": items_list,
                 "time": datetime.now().strftime("%H:%M"),
                 "created_at": datetime.now().isoformat(),
-                "status": "pending"
+                "status": "pending",
+                "coupon_code": coupon_code.strip().upper() if coupon_code else "",
+                "discount": discount,
+                "final_total": final_total
             }
             st.rerun()
         elif submitted and not customer_name:
@@ -631,12 +646,12 @@ else:
     if st.session_state.get("pending_cart_order"):
         pending_o = st.session_state.pending_cart_order
         st.divider()
-        st.subheader("💳 Payment Required to Confirm Order")
+        st.subheader(":material/payments: Payment required to confirm order")
         st.warning(f"⚠️ Select payment method to confirm {pending_o['name']}'s order!")
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("💵 Cash on Counter", key="cart_cash", use_container_width=True):
+            if st.button(":material/point_of_sale: Cash on counter", key="cart_cash", width="stretch"):
                 pending_o["payment_method"] = "Cash"
                 pending_o["payment_status"] = "Pay at counter"
                 _, doc_ref = db.collection("orders").add(pending_o)
@@ -648,7 +663,7 @@ else:
                 st.balloons()
                 st.rerun()
         with col2:
-            if st.button("📱 Pay with UPI", key="cart_upi", use_container_width=True):
+            if st.button(":material/phone_iphone: Pay with UPI", key="cart_upi", width="stretch"):
                 pending_o["payment_method"] = "UPI"
                 pending_o["payment_status"] = "Paid"
                 _, doc_ref = db.collection("orders").add(pending_o)
@@ -660,7 +675,7 @@ else:
                 st.balloons()
                 st.rerun()
         with col3:
-            if st.button("💳 Pay with CARD", key="cart_card", use_container_width=True):
+            if st.button(":material/credit_card: Pay with card", key="cart_card", width="stretch"):
                 pending_o["payment_method"] = "CARD"
                 pending_o["payment_status"] = "Paid"
                 _, doc_ref = db.collection("orders").add(pending_o)
@@ -679,8 +694,12 @@ if st.session_state.orders:
     active_orders = [o for o in st.session_state.orders if o.get('status') in ['pending', 'preparing']]
     if active_orders:
         st.info(f"🔥 The kitchen is currently preparing {len(active_orders)} orders.")
+
+    ready_orders = [o for o in st.session_state.orders if o.get('status') == 'ready']
+    for ready_o in ready_orders:
+        st.success(f"🔔 **Order #{ready_o['order_id']} is READY — please collect your {ready_o.get('coffee', 'order')}!** 🛎️")
         
-    tab_current, tab_history = st.tabs(["📋 Current Orders", "📜 Order History"])
+    tab_current, tab_history = st.tabs([":material/receipt_long: Current orders", ":material/history: Order history"])
 
     with tab_current:
         # Auto-refresh if there are active orders
@@ -705,7 +724,16 @@ if st.session_state.orders:
                     order['status'] = db_data.get('status', order.get('status', 'pending'))
                     if 'estimated_time' in db_data:
                         order['estimated_time'] = db_data['estimated_time']
-                        
+                    if 'preparing_at' in db_data:
+                        order['preparing_at'] = db_data['preparing_at']
+                    if 'ready_at' in db_data:
+                        order['ready_at'] = db_data['ready_at']
+
+                    if order['status'] == 'ready' and order.get('order_id') not in st.session_state.ready_notified:
+                        st.session_state.ready_notified.add(order.get('order_id'))
+                        st.balloons()
+                        st.toast(f"🔔 Order #{order.get('order_id')} is READY — please take it!", icon="🛎️")
+
             with st.container():
                 col1,col2,col3 = st.columns([3,2,1])
                 with col1:
@@ -718,22 +746,32 @@ if st.session_state.orders:
                         st.write(f"☕ {order.get('size', '')} {order.get('coffee', '')}")
                     
                     if order.get('status') == 'preparing':
-                        mins = order.get('estimated_time', 5)
-                        st.warning(f"👨‍🍳 **Your order is preparing! It will take {mins} minutes.**")
+                        est_mins = order.get('estimated_time', 5)
+                        prep_raw = order.get('preparing_at') or order.get('created_at') or datetime.now().isoformat()
+                        try:
+                            prep_time = datetime.fromisoformat(prep_raw)
+                        except Exception:
+                            prep_time = datetime.now()
+                        elapsed = (datetime.now() - prep_time).total_seconds()
+                        total_secs = max(1, est_mins * 60)
+                        remaining = max(0, total_secs - int(elapsed))
+                        mm, ss = divmod(remaining, 60)
+                        st.warning(f"👨‍🍳 **Your order is preparing! Ready in ~{mm}:{ss:02d}**")
+                        st.progress(min(1.0, elapsed / total_secs))
                     elif order.get('status') == 'ready':
-                        st.success(f"✅ **Your order is Ready for pickup!**")
+                        st.success("🔔 **Your order is READY! Please collect it!** 🛎️")
                         
                 with col2:
                     st.write(f"⏱️ Time: {order['time']}")
                     st.write(f"📌 Status: {order.get('status', 'unknown').upper()}")
                 with col3:
-                    if st.button(f"✅ Done", key=f"done_{order['order_id']}"):
+                    if st.button(":material/check: Done", key=f"done_{order['order_id']}", width="stretch"):
                         order['status'] = "completed"
                         if "doc_id" in order:
                             db.collection("orders").document(order["doc_id"]).update({"status": "completed"})
                         st.session_state.show_receipt_for = order
                         st.rerun()
-                st.divider()
+                st.space("small")
                 
         if not has_current:
             st.info("No active orders right now.")
@@ -756,7 +794,7 @@ if st.session_state.orders:
                     with col2:
                         st.write(f"⏱️ Time: {order['time']}")
                         st.success(f"✅ COMPLETED")
-                    st.divider()
+                    st.space("small")
                     
         if not has_history:
             st.info("Your past orders will appear here.")
@@ -767,7 +805,7 @@ st.divider()
 # ── ANALYTICS ──
 if len(st.session_state.orders) > 0:
     st.divider()
-    with st.expander("📊 Today's Analytics"):
+    with st.expander(":material/analytics: Today's analytics"):
         coffee_counts = {}
         for order in st.session_state.orders:
             coffee = order['coffee']
@@ -777,8 +815,7 @@ if len(st.session_state.orders) > 0:
             st.write(f"- {coffee}: {count} order(s)")
         prices = {"Small": 150, "Large": 250}
         total_revenue = sum(prices.get(order['size'], 0) for order in st.session_state.orders)
-        st.metric("💰 Estimated Revenue", f"₹{total_revenue}")
+        st.metric("Estimated revenue", f"₹{total_revenue}")
 
 # ── FOOTER ──
-st.divider()
-st.caption("🤖 Nova AI Coffee Assistant | Built with ❤️ by Farooq | © 2026")
+st.caption("Nova AI Coffee Assistant · Built with ❤️ by Farooq · © 2026")

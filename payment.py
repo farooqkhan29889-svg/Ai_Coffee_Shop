@@ -121,3 +121,51 @@ def generate_bill_text(bill_data, language="English"):
         bill_text += f"Total: ₹{bill_data['total']}\n"
     
     return bill_text
+
+OFFERS = {
+    "WELCOME10": {"type": "percent", "value": 10, "desc": "10% off your order"},
+    "SAVE20":    {"type": "percent", "value": 20, "desc": "20% off your order"},
+    "FIRST30":   {"type": "percent", "value": 30, "desc": "30% off your order"},
+    "NOVA50":    {"type": "flat",    "value": 50, "desc": "₹50 off your order"},
+    "NOVA100":   {"type": "flat",    "value": 100, "desc": "₹100 off your order"},
+    "LATTE_OFF": {"type": "item",    "item": "Latte", "value": 50, "desc": "₹50 off Latte"},
+}
+
+def applied_offer(code, cart_item, total_price):
+    """Return (final_total, discount_amount, message).
+
+    cart_item is a list of {'item': ..., 'size': ..., 'price': ...}
+    total_price is the pre-discount cart total.
+    """
+    code = code.strip().upper()
+    if code not in OFFERS:
+        return (total_price, 0, "Invalid code")
+
+    offer = OFFERS[code]
+    discount = 0
+
+    if offer["type"] == "flat":
+        discount = offer["value"]
+    elif offer["type"] == "percent":
+        discount = int(total_price * offer["value"] / 100)
+    elif offer["type"] == "item":
+        for item in cart_item:
+            if item["item"] == offer["item"]:
+                discount = offer["value"]
+                break
+        if discount == 0:
+            return (total_price, 0, f"{code} needs {offer['item']} in your cart")
+
+    return (max(0, total_price - discount), discount, offer["desc"])
+
+    
+def apply_coupon(coupon_code, total_amount):
+    """Apply discount coupon code"""
+    code = coupon_code.strip().upper() if coupon_code else ""
+    if code == "NOVA50":
+        return max(0, total_amount - 50), 50
+    elif code == "NOVA100":
+        return max(0, total_amount - 100), 100
+    else:
+        return total_amount, 0
+    
