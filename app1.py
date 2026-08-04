@@ -82,11 +82,16 @@ if "table_number" not in st.session_state:
 # ---- Unique order number (shared counter in Firebase) ----
 def next_order_number():
     try:
-        doc_ref = db.collection("meta").document("order_counter")
-        doc = doc_ref.get()
-        current = doc.get("value") if doc.exists else 1000
-        doc_ref.set({"value": current + 1})
-        return current
+        txn = db.transaction()
+
+        def _increment(transaction):
+            doc_ref = db.collection("meta").document("order_counter")
+            snap = doc_ref.get(transaction=transaction)
+            current = snap.get("value") if snap.exists else 1000
+            transaction.set(doc_ref, {"value": current + 1})
+            return current
+
+        return txn.transaction(_increment)
     except Exception:
         return int(datetime.now().strftime("%H%M%S"))
 
@@ -115,7 +120,7 @@ if not st.session_state.orders_loaded_from_db:
             if not any(o.get("doc_id") == doc.id for o in st.session_state.orders):
                 st.session_state.orders.append(data)
             if data.get("status") == "ready":
-                st.session_state.ready_notified.add(data.get("order_id"))
+                st.session_state.ready_notified.add(data.get("doc_id") or data.get("order_id"))
     except Exception:
         pass
 
@@ -737,8 +742,8 @@ if st.session_state.orders:
                     if 'ready_at' in db_data:
                         order['ready_at'] = db_data['ready_at']
 
-                    if order['status'] == 'ready' and order.get('order_id') not in st.session_state.ready_notified:
-                        st.session_state.ready_notified.add(order.get('order_id'))
+                    if order['status'] == 'ready' and (order.get("doc_id") or order.get("order_id")) not in st.session_state.ready_notified:
+                        st.session_state.ready_notified.add(order.get("doc_id") or order.get("order_id"))
                         st.balloons()
                         st.toast(f"🔔 Order #{order.get('order_id')} is READY — please take it!", icon="🛎️")
 
@@ -785,7 +790,8 @@ if st.session_state.orders:
                         st.write(f"🕘 Placed at: {order.get('time', '')}")
                         st.write("📌 Status: **PENDING**")
                 with col3:
-                    if st.button(":material/check: Done", key=f"done_{order['order_id']}", width="stretch"):
+                    done_key = order.get("doc_id") or order.get("order_id")
+                    if st.button(":material/check: Done", key=f"done_{done_key}", width="stretch"):
                         order['status'] = "completed"
                         if "doc_id" in order:
                             db.collection("orders").document(order["doc_id"]).update({"status": "completed"})
