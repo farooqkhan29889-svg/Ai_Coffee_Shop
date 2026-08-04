@@ -756,7 +756,7 @@ if st.session_state.orders:
                         total_secs = max(1, est_mins * 60)
                         remaining = max(0, total_secs - int(elapsed))
                         mm, ss = divmod(remaining, 60)
-                        st.warning(f"👨‍🍳 **Your order is preparing! Ready in ~{mm}:{ss:02d}**")
+                        st.warning(f"👨‍🍳 **Chef is preparing your order — please wait ~{est_mins} min**\n\n⏳ Ready in {mm}:{ss:02d}")
                         st.progress(min(1.0, elapsed / total_secs))
                     elif order.get('status') == 'ready':
                         st.success("🔔 **Your order is READY! Please collect it!** 🛎️")

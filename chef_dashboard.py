@@ -7,61 +7,66 @@ from datetime import datetime
 
 load_dotenv()
 
-st.set_page_config(page_title="Chef Dashboard", page_icon="👨‍🍳", layout="wide")
-st.title("👨‍🍳 Nova Coffee Shop - Chef Dashboard")
+st.set_page_config(page_title="Chef Dashboard", page_icon=":material/restaurant_menu:", layout="wide", initial_sidebar_state="collapsed")
+st.title("👨‍🍳 Nova Coffee Shop — Chef Dashboard")
 
 # ---- CSS Styles ----
-st.markdown("""
+st.html("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@400;500&display=swap');
-
 .stApp {
-    background-color: #0a0a0f;
-    color: #ffffff;
+    background:
+        radial-gradient(1100px 700px at 88% -5%, rgba(201,162,75,0.14), transparent 60%),
+        radial-gradient(900px 650px at -5% 105%, rgba(201,162,75,0.10), transparent 55%),
+        linear-gradient(165deg, #0f0e13 0%, #141218 50%, #0b0a0e 100%);
 }
+[data-testid="stHeader"] { background: transparent; }
 
 .order-card {
-    background-color: #1a1a2e;
-    border: 3px solid #ff6b35;
-    border-radius: 15px;
+    background: rgba(26, 24, 31, 0.7);
+    border: 1px solid rgba(201, 162, 75, 0.25);
+    border-radius: 18px;
     padding: 20px;
     margin: 15px 0;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .status-pending {
-    color: #ff4444;
+    color: #ff6b6b;
     font-weight: bold;
     font-size: 20px;
 }
 
 .status-preparing {
-    color: #ffaa00;
+    color: #ffb14d;
     font-weight: bold;
     font-size: 20px;
 }
 
 .status-ready {
-    color: #00ff88;
+    color: #5ee0a0;
     font-weight: bold;
     font-size: 20px;
 }
 
 .total-orders {
-    color: #ffaa00;
+    color: #C9A24B;
     font-weight: bold;
     font-size: 20px;
 }
 
 h1, h2, h3 {
-    color: #ff6b35 !important;
-    font-family: 'Orbitron', monospace !important;
+    background: linear-gradient(90deg, #F5E6C4, #C9A24B 55%, #F5E6C4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-body, p, div {
-    font-family: 'Rajdhani', sans-serif;
+.stButton > button, [data-testid="stFormSubmitButton"] > button {
+    border-radius: 999px;
+    font-weight: 600;
 }
 </style>
-""", unsafe_allow_html=True)
+""")
 
 # ---- Initialize Firebase (only once) ----
 if not firebase_admin._apps:
@@ -85,12 +90,14 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # ---- Fetch Orders from Firestore ----
+connected = True
 try:
    docs = db.collection("orders").stream()
    orders = [{"doc_id": doc.id, **doc.to_dict()} for doc in docs]  # ✅ WITH doc_id!
 except Exception as e:
     st.error(f"Firebase error {e}")
     orders = []
+    connected = False
 
 # Sort orders newest-first (using created_at, or order_id)
 def get_order_sort_key(o):
@@ -99,6 +106,20 @@ def get_order_sort_key(o):
     return f"{o.get('order_id', 0):010d}" if isinstance(o.get('order_id'), int) else str(o.get('order_id', ''))
 
 orders.sort(key=get_order_sort_key, reverse=True)
+
+# ---- Auto-refresh so new customer orders appear live ----
+try:
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=5000, key="chef_refresh")
+except ImportError:
+    pass
+
+# ---- Connection status ----
+with st.sidebar:
+    if connected:
+        st.badge("Live · Firebase synced", icon=":material/sensors:", color="green")
+    else:
+        st.badge("Offline", icon=":material/wifi_off:", color="red")
 
 # ---- Header ----
 st.markdown(f"<p class='total-orders'>📋 Total Orders: {len(orders)}</p>", unsafe_allow_html=True)
