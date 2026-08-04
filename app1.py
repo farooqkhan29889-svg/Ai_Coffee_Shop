@@ -5,9 +5,9 @@ import os
 import streamlit as st
 from langchain_groq import ChatGroq
 from datetime import datetime, timedelta
-from payment import calculate_bill, generate_bill_text, applied_offer
+from payment import calculate_bill, generate_bill_text, applied_offer, PRICES, FOOD_PRICES
 from langchain_core.messages import HumanMessage,SystemMessage,AIMessage
-import time
+import re
 
 # ✅ ADD THIS TOO
 import streamlit.components.v1 as components
@@ -69,12 +69,9 @@ if "show_receipt_for" not in st.session_state:
 if "ready_notified" not in st.session_state:
     st.session_state.ready_notified = set()
 
-if "pending_order" not in st.session_state:
-    st.session_state.pending_order = None
-    
-if "order_start_time" not in st.session_state:
-    st.session_state.order_start_time = None
-    
+if "orders_loaded_from_db" not in st.session_state:
+    st.session_state.orders_loaded_from_db = False
+
 if "table_number" not in st.session_state:
     table_param = st.query_params.get("table", "1")
     try:
@@ -82,12 +79,51 @@ if "table_number" not in st.session_state:
     except:
         st.session_state.table_number = 1
 
+# ---- Unique order number (shared counter in Firebase) ----
+def next_order_number():
+    try:
+        doc_ref = db.collection("meta").document("order_counter")
+        doc = doc_ref.get()
+        current = doc.get("value") if doc.exists else 1000
+        doc_ref.set({"value": current + 1})
+        return current
+    except Exception:
+        return int(datetime.now().strftime("%H%M%S"))
+
+# ---- Look up price for chat-ordered items ----
+def item_price(item_name, size):
+    size = size or ""
+    if item_name in PRICES and size in PRICES[item_name]:
+        return PRICES[item_name][size]
+    if item_name in FOOD_PRICES:
+        qty = 1
+        nums = re.findall(r"\d+", size)
+        if nums:
+            qty = int(nums[0])
+        return FOOD_PRICES[item_name] * qty
+    return 0
+
+# ---- Reload this table's orders from Firebase (survives page refresh) ----
+if not st.session_state.orders_loaded_from_db:
+    st.session_state.orders_loaded_from_db = True
+    try:
+        docs = db.collection("orders").where("table", "==", st.session_state.table_number).stream()
+        for doc in docs:
+            data = doc.to_dict()
+            if "doc_id" not in data:
+                data["doc_id"] = doc.id
+            if not any(o.get("doc_id") == doc.id for o in st.session_state.orders):
+                st.session_state.orders.append(data)
+            if data.get("status") == "ready":
+                st.session_state.ready_notified.add(data.get("order_id"))
+    except Exception:
+        pass
+
 
 #  ------ create chat histroy ----------
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [
-        SystemMessage(content=f"""You are NOVA, an AI waiter at Nova Coffee Shop, currently serving Table {st.session_state.table_number}.
+def build_system_message(language, table_number):
+    return SystemMessage(content=f"""You are NOVA, an AI waiter at Nova Coffee Shop, currently serving Table {table_number}.
 
 *** LANGUAGE RULE - MUST FOLLOW ***
 
@@ -199,7 +235,17 @@ ALWAYS write ORDER_CONFIRMED on its own line
 ALWAYS use | to separate name, item, size
 
 Be friendly and warm like a real waiter!""")
-    ]
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [build_system_message(language, st.session_state.table_number)]
+
+if "applied_language" not in st.session_state:
+    st.session_state.applied_language = language
+
+if st.session_state.applied_language != language:
+    st.session_state.applied_language = language
+    st.session_state.chat_history[0] = build_system_message(language, st.session_state.table_number)
+    st.toast(f"🌐 Language switched to {language}")
     
 # ---- llm -----
 
@@ -291,44 +337,6 @@ with st.container(horizontal_alignment="center"):
     st.caption("Premium AI Coffee Shop — order by chat, tap, or voice")
     st.badge(f"Table {st.session_state.table_number}", icon=":material/table_restaurant:", color="orange")
 
-# ── PENDING ORDER TIMER ──
-if st.session_state.pending_order:
-    elapsed = (datetime.now() - st.session_state.order_start_time).total_seconds()
-    remaining = 120 - elapsed
-    
-    if remaining > 0:
-        st.warning(f"⏳ **Pending Order:** {st.session_state.pending_order['name']}'s {st.session_state.pending_order['size']} {st.session_state.pending_order['coffee']}")
-        st.write(f"⏱️ **Auto-confirming in {int(remaining)} seconds...**")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button(":material/edit: Cancel / change", width="stretch"):
-                st.session_state.pending_order = None
-                st.session_state.order_start_time = None
-                st.rerun()
-        with c2:
-            if st.button(":material/check_circle: Confirm now", width="stretch", type="primary"):
-                st.session_state.pending_order["status"] = "confirmed"
-                st.session_state.orders.append(st.session_state.pending_order)
-                db.collection("orders").add(st.session_state.pending_order)
-                st.session_state.pending_order = None
-                st.session_state.order_start_time = None
-                st.success("✅ Order confirmed successfully!")
-                st.balloons()
-                st.rerun()
-        
-        # Refresh every 1 second to update timer
-        time.sleep(1)
-        st.rerun()
-    else:
-        st.session_state.pending_order["status"] = "confirmed"
-        st.session_state.orders.append(st.session_state.pending_order)
-        db.collection("orders").add(st.session_state.pending_order)
-        st.session_state.pending_order = None
-        st.session_state.order_start_time = None
-        st.success("✅ Order confirmed automatically!")
-        st.balloons()
-        st.rerun()
 st.markdown("---")
 
 def add_to_cart(item, size, price):
@@ -507,12 +515,13 @@ if user_input:
                     customer_name = parts[0]
                     order_items.append({
                         "item": parts[1],
-                        "size": parts[2]
+                        "size": parts[2],
+                        "price": item_price(parts[1], parts[2])
                     })
             if order_items:
                 primary_coffee = ", ".join([it["item"] for it in order_items])
                 order = {
-                    "order_id": len(st.session_state.orders) + 1,
+                    "order_id": next_order_number(),
                     "name": customer_name,
                     "table": st.session_state.table_number,
                     "coffee": primary_coffee,
@@ -522,7 +531,6 @@ if user_input:
                     "created_at": datetime.now().isoformat(),
                     "status": "pending"
                 }
-                st.session_state.temp_order = order
                 bill_data = calculate_bill([order])
                 bill_text = generate_bill_text(bill_data, language)
                 with st.chat_message("assistant"):
@@ -626,7 +634,7 @@ else:
             ]
             primary_coffee = ", ".join([it["item"] for it in items_list])
             st.session_state.pending_cart_order = {
-                "order_id": len(st.session_state.orders) + 1,
+                "order_id": next_order_number(),
                 "name": customer_name,
                 "table": st.session_state.table_number,
                 "coffee": primary_coffee,
@@ -820,13 +828,18 @@ if len(st.session_state.orders) > 0:
     with st.expander(":material/analytics: Today's analytics"):
         coffee_counts = {}
         for order in st.session_state.orders:
-            coffee = order['coffee']
+            coffee = order.get('coffee', 'Order')
             coffee_counts[coffee] = coffee_counts.get(coffee, 0) + 1
-        st.write("**Popular coffees today:**")
+        st.write("**Popular items today:**")
         for coffee, count in sorted(coffee_counts.items(), key=lambda x: x[1], reverse=True):
             st.write(f"- {coffee}: {count} order(s)")
-        prices = {"Small": 150, "Large": 250}
-        total_revenue = sum(prices.get(order['size'], 0) for order in st.session_state.orders)
+        total_revenue = 0
+        for order in st.session_state.orders:
+            if order.get("items"):
+                for it in order["items"]:
+                    total_revenue += it.get("price", 0)
+            else:
+                total_revenue += item_price(order.get("coffee", ""), order.get("size", ""))
         st.metric("Estimated revenue", f"₹{total_revenue}")
 
 # ── FOOTER ──
