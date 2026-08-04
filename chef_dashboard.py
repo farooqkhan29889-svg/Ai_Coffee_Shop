@@ -152,6 +152,18 @@ for order in orders:
     prep_at = order.get("preparing_at")
     prep_html = f"<p>🔥 Started: {prep_at[:19].replace('T', ' ')}</p>" if prep_at else ""
 
+    countdown_html = ""
+    if status == "preparing" and prep_at:
+        try:
+            prep_time = datetime.fromisoformat(prep_at)
+            elapsed = (datetime.now() - prep_time).total_seconds()
+            total_secs = max(1, int(est or 5) * 60)
+            remaining = max(0, total_secs - int(elapsed))
+            mm, ss = divmod(remaining, 60)
+            countdown_html = f"<p>⏳ Ready in <b>{mm:02d}:{ss:02d}</b></p>"
+        except Exception:
+            pass
+
     with st.container():
         st.markdown(f"""
         <div class="order-card">
@@ -162,6 +174,7 @@ for order in orders:
             <p>Status: <span class="{status_class}">{status.upper()}</span></p>
             {est_html}
             {prep_html}
+            {countdown_html}
         </div>
         """, unsafe_allow_html=True)
 
@@ -186,11 +199,11 @@ for order in orders:
                     })
                     st.rerun()
             time_mins = st.number_input(
-                "Custom minutes:", min_value=1, value=5, key=f"time_{order['doc_id']}"
+                "Custom minutes:", min_value=1, value=10, key=f"time_{order['doc_id']}"
             )
 
         with cal1:
-            if st.button("👨‍🍳 Preparing", key=f"prep_{order['doc_id']}"):  # ✅ UNIQUE!
+            if st.button(f"👨‍🍳 Start ({int(time_mins)} min)", key=f"prep_{order['doc_id']}"):  # ✅ UNIQUE!
                 db.collection("orders").document(order['doc_id']).update({
                     "status": "preparing",
                     "estimated_time": time_mins,

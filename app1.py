@@ -734,6 +734,21 @@ if st.session_state.orders:
                         st.balloons()
                         st.toast(f"🔔 Order #{order.get('order_id')} is READY — please take it!", icon="🛎️")
 
+            # Live countdown for preparing orders (same numbers chef app shows)
+            countdown_str = ""
+            if order.get('status') == 'preparing':
+                est_mins = order.get('estimated_time', 5)
+                prep_raw = order.get('preparing_at') or order.get('created_at') or datetime.now().isoformat()
+                try:
+                    prep_time = datetime.fromisoformat(prep_raw)
+                except Exception:
+                    prep_time = datetime.now()
+                elapsed = (datetime.now() - prep_time).total_seconds()
+                total_secs = max(1, est_mins * 60)
+                remaining = max(0, total_secs - int(elapsed))
+                mm, ss = divmod(remaining, 60)
+                countdown_str = f"{mm:02d}:{ss:02d}"
+
             with st.container():
                 col1,col2,col3 = st.columns([3,2,1])
                 with col1:
@@ -746,24 +761,21 @@ if st.session_state.orders:
                         st.write(f"☕ {order.get('size', '')} {order.get('coffee', '')}")
                     
                     if order.get('status') == 'preparing':
-                        est_mins = order.get('estimated_time', 5)
-                        prep_raw = order.get('preparing_at') or order.get('created_at') or datetime.now().isoformat()
-                        try:
-                            prep_time = datetime.fromisoformat(prep_raw)
-                        except Exception:
-                            prep_time = datetime.now()
-                        elapsed = (datetime.now() - prep_time).total_seconds()
-                        total_secs = max(1, est_mins * 60)
-                        remaining = max(0, total_secs - int(elapsed))
-                        mm, ss = divmod(remaining, 60)
-                        st.warning(f"👨‍🍳 **Chef is preparing your order — please wait ~{est_mins} min**\n\n⏳ Ready in {mm}:{ss:02d}")
+                        st.warning(f"👨‍🍳 **Chef is preparing your order — please wait ~{est_mins} min**\n\n⏳ Ready in {countdown_str}")
                         st.progress(min(1.0, elapsed / total_secs))
                     elif order.get('status') == 'ready':
                         st.success("🔔 **Your order is READY! Please collect it!** 🛎️")
                         
                 with col2:
-                    st.write(f"⏱️ Time: {order['time']}")
-                    st.write(f"📌 Status: {order.get('status', 'unknown').upper()}")
+                    if order.get('status') == 'preparing':
+                        st.write(f"⏳ **{countdown_str}** left")
+                        st.write("📌 Status: **PREPARING**")
+                    elif order.get('status') == 'ready':
+                        st.write("✅ **Ready — collect it!**")
+                        st.write("📌 Status: **READY**")
+                    else:
+                        st.write(f"🕘 Placed at: {order.get('time', '')}")
+                        st.write("📌 Status: **PENDING**")
                 with col3:
                     if st.button(":material/check: Done", key=f"done_{order['order_id']}", width="stretch"):
                         order['status'] = "completed"
@@ -792,7 +804,7 @@ if st.session_state.orders:
                         else:
                             st.write(f"☕ {order.get('size', '')} {order.get('coffee', '')}")
                     with col2:
-                        st.write(f"⏱️ Time: {order['time']}")
+                        st.write(f"🕘 Placed at: {order.get('time', '')}")
                         st.success(f"✅ COMPLETED")
                     st.space("small")
                     
